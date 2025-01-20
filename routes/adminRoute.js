@@ -2,7 +2,6 @@ import express from "express";
 import {
   adminLogin,
   adminLogout,
-  adminSignup,
   getUsersList,
   updateUserStatus,
 } from "../controller/adminController.js";
@@ -24,7 +23,7 @@ import { addNewProduct, editProduct, getAllProducts, updateProductStatus } from 
 const adminRouter = express.Router();
 // ----------------------------------------------------
 
-adminRouter.post("/signup", adminSignup);
+// adminRouter.post("/signup", adminSignup);
 adminRouter.post("/login", adminLogin);
 adminRouter.post("/logout", adminLogout);
 // ----------------------------------------------------

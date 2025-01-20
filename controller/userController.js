@@ -10,7 +10,7 @@ import {
   storeOtp,
   storeRefreshToken,
 } from "../config/redis.js";
-import { generateTokens } from "../utils/jwt/generateToken.js";
+import { decodeRefreshToken, generateAccessToken, generateRefreshToken } from "../utils/jwt/userJwt.js";
 
 // Set access and refresh tokens in cookies
 const setCookies = (res, accessToken, refreshToken) => {
@@ -257,7 +257,8 @@ export const login = async (req, res) => {
     const match = await comparePassword(password, user.password);
     console.log(match);
     if (match) {
-      const { accessToken, refreshToken } = generateTokens(user._id);
+      const accessToken = generateAccessToken(user._id)
+      const  refreshToken = generateRefreshToken(user._id);
       if (user.isBlocked) {
         return res.status(403).json({ message: "User is Blocked by admin" });
       }
@@ -290,10 +291,7 @@ export const logout = async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
     if (refreshToken) {
-      const decoded = JWT.verify(
-        refreshToken,
-        process.env.USER_REFRESH_TOKEN_SECRET
-      );
+      const decoded = decodeRefreshToken(refreshToken)
       await redis.del(`refresh_token:${decoded.userId}`);
     }
 
@@ -302,6 +300,40 @@ export const logout = async (req, res) => {
     res.json({ message: "Logged out successfully." });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const refreshAccessToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.cookies;
+
+    if (!refreshToken) {
+      return res.status(401).json({ message: "Refresh token missing" });
+    }
+
+    const userId = await verifyRefreshToken(refreshToken); // Verify the refresh token
+
+    if (!userId) {
+      return res.status(403).json({ message: "Invalid refresh token" });
+    }
+
+    // Generate new tokens
+    const newAccessToken = generateAccessToken(userId);
+    const newRefreshToken = generateRefreshToken(userId);
+
+    // Store the new refresh token in Redis
+    await storeRefreshToken(userId, newRefreshToken);
+
+    // Set new cookies
+    setCookies(res, newAccessToken, newRefreshToken);
+
+    res.status(200).json({
+      message: "Token refreshed successfully",
+      accessToken: newAccessToken,
+    });
+  } catch (error) {
+    console.error("Refresh token error", error);
+    res.status(500).json({ message: "Failed to refresh token" });
   }
 };
 

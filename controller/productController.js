@@ -15,7 +15,7 @@ export const getAllProducts = async (req, res) => {
         path: "brand",
         select: "title",
       });
-
+      console.log(products)
     res.status(200).json({ products });
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch products" });
@@ -172,15 +172,17 @@ export const getProductDetails = async (req, res) => {
 
 export const getRelatedProducts = async (req, res) => {
   try {
-    const {categoryId , brandId } = req.query;
+    const {categoryId , brandId , productId} = req.query;
+
     if(!categoryId || !brandId){
-      res.status(400).json({message:"Missing categoryId or brandId"})
+      return res.status(400).json({message:"Missing categoryId or brandId"})
     }
 
     const relatedProducts = await Product.find({
       category:categoryId,
       brand:brandId,
       isBlocked:false,
+      _id: { $ne: productId },
     }).limit(3)
 
     res.status(200).json({ products: relatedProducts });
