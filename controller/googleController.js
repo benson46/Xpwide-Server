@@ -76,14 +76,12 @@ export const login = async (req, res) => {
       success: true,
       message: "Login successful",
       accessToken,
-      user: {
-        id: user._id,
+        _id: user._id,
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
         image: user.image,
         isBlocked: user.isBlocked
-      },
     });
   } catch (error) {
     console.error("Google login error:", error);

@@ -1,6 +1,7 @@
 import { hashPassword, comparePassword } from "../utils/secure/password.js";
 import Admin from "../model/adminModel.js";
 import User from "../model/userModel.js";
+import mongoose from "mongoose";
 import { deleteRefreshToken, storeRefreshToken } from "../config/redis.js";
 import { convertDateToMonthAndYear } from "../config/dateConvertion.js";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwt/generateToken.js";
@@ -114,11 +115,10 @@ export const getUsersList = async (req, res) => {
 // Method Patch || Block User
 export const updateUserStatus = async (req, res) => {
   const { userId } = req.body;
-  
   console.log(userId)
+   
   try {
     const userData = await User.findById(userId);
-
     if (!userData) {
       return res
         .status(400)
@@ -133,12 +133,13 @@ export const updateUserStatus = async (req, res) => {
       { new: true }
     );
 
+    console.log(updatedUserData)
+
     res.json({
       success: true,
       message: `User ${updatedUserData.isBlocked ? "blocked" : "unblocked"}`,
       updatedUserData,
     });
-        console.log(updatedUserData)
 
   } catch (error) {
     res
@@ -149,13 +150,27 @@ export const updateUserStatus = async (req, res) => {
 
 
 export const checkUserStatus = async (req, res) => {
-  const userId = req.query.userId; 
-  const user = await User.findById(userId); 
-  console.log(user)
-  if (user.isBlocked) {
-    return res.status(403).json({ message: "User is blocked" });
+  const userId = req.query.userId;
+
+  if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: "Invalid or missing userId" });
   }
 
-  return res.status(200).json({ message: "User is active" });
-}
+  try {
+    const user = await User.findById(userId); 
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.isBlocked) {
+      return res.status(403).json({ message: "User is blocked" });
+    }
+
+    return res.status(200).json({ message: "User is active" });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 
