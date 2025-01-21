@@ -3,69 +3,91 @@ import User from "../model/userModel.js";
 import {
   generateAccessToken,
   generateRefreshToken,
-} from "../utils/jwt/userJwt.js";
+} from "../utils/jwt/generateToken.js";
 import { storeRefreshToken } from "../config/redis.js";
+
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+// Set cookies for tokens
 const setCookies = (res, accessToken, refreshToken) => {
   res.cookie("accessToken", accessToken, {
-    httpOnly: true, // Prevent XSS attacks
+    httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict", // Prevent CSRF attacks
-    maxAge: 15 * 60 * 1000, // Expiry time: 15 minutes
+    sameSite: "strict",
+    maxAge: 15 * 60 * 1000, // 15 minutes
   });
   res.cookie("refreshToken", refreshToken, {
-    httpOnly: true, // Prevent XSS attacks
+    httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict", // Prevent CSRF attacks
-    maxAge: 7 * 24 * 60 * 60 * 1000, // Expiry time: 7 days
+    sameSite: "strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 };
 
+// Login handler
 export const login = async (req, res) => {
   try {
     const { token } = req.body;
+
+    // Verify the Google token
     const ticket = await client.verifyIdToken({
       idToken: token,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
-    const payload = ticket.getPayload();
 
-    const { email, given_name, family_name, picture } = payload;
+    const { email, given_name: firstName, family_name: lastName, picture, sub: userId } = ticket.getPayload();
 
     let user = await User.findOne({ email });
 
     if (!user) {
+      // Create a new user if not found
       user = await User.create({
-        firstName: given_name,
-        lastName: family_name,
+        firstName,
+        lastName,
         email,
         image: picture,
-        password: "google-auth",
+        password:'google-auth'
       });
     }
 
-    console.log(user);
+    // Check if the user is blocked
+    if (user.isBlocked) {
+      return res.status(403).json({
+        success: false,
+        message: "You are blocked. Not able to login.",
+      });
+    }
 
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
-    await storeRefreshToken(user._id, refreshToken); // Store in Redis
-    setCookies(res, accessToken, refreshToken); // Set cookies
+    const userData = {
+      id: user._id,
+      role: "user",
+    };
 
+    // Generate tokens
+    const accessToken = generateAccessToken(userData);
+    const refreshToken = generateRefreshToken(userData);
+
+    await storeRefreshToken(user._id, refreshToken);
+
+    // Set cookies for the tokens
+    setCookies(res, accessToken, refreshToken);
+
+    // Send the response
     res.status(200).json({
+      success: true,
       message: "Login successful",
+      accessToken,
       user: {
         id: user._id,
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        image: user.image,
+        isBlocked: user.isBlocked
       },
     });
   } catch (error) {
-    console.error("Google login error", error);
-    res.status(500).json({ message: "Google login failed" });
+    console.error("Google login error:", error);
+    res.status(500).json({ success: false, message: "Google login failed" });
   }
 };
-
-
-

@@ -15,7 +15,6 @@ export const getAllProducts = async (req, res) => {
         path: "brand",
         select: "title",
       });
-      console.log(products)
     res.status(200).json({ products });
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch products" });
@@ -162,7 +161,6 @@ export const getProductDetails = async (req, res) => {
     });
   }
 
-  console.log(product);
   res.status(200).json({
     product,
     success: true,
@@ -187,7 +185,6 @@ export const getRelatedProducts = async (req, res) => {
 
     res.status(200).json({ products: relatedProducts });
   } catch (error) {
-    console.log(`error on getRelatedProducts ${error}`);
     res.status(500).json({
       message: "Failed to fetch products",
       error: error.message,

@@ -2,7 +2,7 @@ import express from "express";
 import {
   login,
   logout,
-  refreshAccessToken,
+  newAccessToken,
   resendOtp,
   resetPassword,
   sendOtp,
@@ -21,10 +21,14 @@ userRouter.post("/resend-otp", resendOtp);
 userRouter.post("/reset-password", resetPassword);
 userRouter.post("/login", login);
 userRouter.post("/logout", logout);
+
+// ----------------------------------------------------
+
 userRouter.get('/products', getAllProducts);
 userRouter.get('/product', getProductDetails)
 userRouter.get('/related-products',getRelatedProducts)
-userRouter.get('/refresh-token',refreshAccessToken)
+
 // ----------------------------------------------------
+userRouter.get('/token',newAccessToken)
 
 export default userRouter;
