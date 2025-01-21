@@ -10,13 +10,13 @@ const setCookies = (res, accessToken, refreshToken) => {
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "None",
     maxAge: 15 * 60 * 1000, // Expiry time: 15 minutes
   });
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "None",
     maxAge: 7 * 24 * 60 * 60 * 1000, // Expiry time: 7 days
   });
 };
@@ -147,4 +147,15 @@ export const updateUserStatus = async (req, res) => {
   }
 };
 
+
+export const checkUserStatus = async (req, res) => {
+  const userId = req.query.userId; 
+  const user = await User.findById(userId); 
+  console.log(user)
+  if (user.isBlocked) {
+    return res.status(403).json({ message: "User is blocked" });
+  }
+
+  return res.status(200).json({ message: "User is active" });
+}
 

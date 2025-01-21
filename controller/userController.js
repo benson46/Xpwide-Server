@@ -21,13 +21,13 @@ const setCookies = (res, accessToken, refreshToken) => {
   res.cookie("accessToken", accessToken, {
     httpOnly: true, // Prevent XSS attacks
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict", // Prevent CSRF attacks
+    sameSite: "None", // Prevent CSRF attacks
     maxAge: 15 * 60 * 1000, // Expiry time: 15 minutes
   });
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true, // Prevent XSS attacks
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict", // Prevent CSRF attacks
+    sameSite: "None", // Prevent CSRF attacks
     maxAge: 7 * 24 * 60 * 60 * 1000, // Expiry time: 7 days
   });
 };

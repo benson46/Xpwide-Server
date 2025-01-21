@@ -2,6 +2,7 @@ import express from "express";
 import {
   adminLogin,
   adminLogout,
+  checkUserStatus,
   getUsersList,
   updateUserStatus,
 } from "../controller/adminController.js";
@@ -31,6 +32,10 @@ adminRouter.post("/logout", adminLogout);
 adminRouter.route("/users-list")
 .get(getUsersList)
 .patch(updateUserStatus);
+
+// Example Express.js route
+adminRouter.get('/check-status',checkUserStatus );
+
 // ----------------------------------------------------
 
 adminRouter
