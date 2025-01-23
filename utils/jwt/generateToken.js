@@ -1,23 +1,24 @@
 import jwt from "jsonwebtoken";
 
 export const generateAccessToken = (user) => {
-  if (user.role == "user") {
-    return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-      expiresIn: process.env.ACCESS_TOKEN_LIFETIME,
-    });
-  }
-  return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-    expiresIn: process.env.ADMIN_ACCESS_TOKEN_LIFETIME,
-  });
+  const payload = {
+    id: user.id, 
+    role: user.role,
+  };
+
+  const expiresIn = process.env.ACCESS_TOKEN_LIFETIME;
+
+  return jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn });
 };
 
+
 export const generateRefreshToken = (user) => {
-  if (user.role == "user") {
-    return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-      expiresIn: process.env.ADMIN_REFRESH_TOKEN_LIFETIME,
-    });
-  }
-  return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-    expiresIn: process.env.ADMIN_REFRESH_TOKEN_LIFETIME,
-  });
+  const payload = {
+    id: user.id, 
+    role: user.role,
+  };
+
+  const expiresIn = REFRESH_TOKEN_LIFETIME;
+
+  return jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, { expiresIn });
 };
