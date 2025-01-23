@@ -4,25 +4,36 @@ import Brand from "../model/brandModel.js";
 import { storeRefreshToken } from "../config/redis.js";
 
 // Method GET || Get all products
-export const getAllProducts = async (req, res) => {
+export const getAllProducts = async (req, res,next) => {
+
+  const {isUser} = req.query;
+
   try {
     const products = await Product.find()
       .populate({
         path: "category",
-        select: "title",
+        select: "title isBlocked",
       })
       .populate({
         path: "brand",
         select: "title",
       });
+      
+      if(isUser){
+        const filteredProducts = products.filter((product)=> {
+          return !product.category.isBlocked
+        })
+        return res.status(200).json({products: filteredProducts})
+      }
+      
     res.status(200).json({ products });
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch products" });
+    next(error)
   }
 };
 
 // Method POST || Add a new product
-export const addNewProduct = async (req, res) => {
+export const addNewProduct = async (req, res,next) => {
   const { name, brand, category, description, price, stock, images } = req.body;
   if (!name || !category || !brand || !price || !stock || !description) {
     return res.status(400).json({
@@ -66,7 +77,7 @@ export const addNewProduct = async (req, res) => {
 };
 
 // Method PATCH || List & Unlist product
-export const updateProductStatus = async (req, res) => {
+export const updateProductStatus = async (req, res,next) => {
   const { productId } = req.body;
 
   try {
@@ -97,14 +108,12 @@ export const updateProductStatus = async (req, res) => {
       updateProductData,
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: "Server error", error: error.message });
+    next(error)
   }
 };
 
 // Method PUT || Edit a product
-export const editProduct = async (req, res) => {
+export const editProduct = async (req, res,next) => {
   const { id, name, brand, category, description, price, stock, images } =
     req.body;
   try {
@@ -134,10 +143,7 @@ export const editProduct = async (req, res) => {
       .status(200)
       .json({ success: true, message: "Product updated successfully" });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    next(error)
   }
 };
 
@@ -168,7 +174,7 @@ export const getProductDetails = async (req, res) => {
   });
 };
 
-export const getRelatedProducts = async (req, res) => {
+export const getRelatedProducts = async (req, res,next) => {
   try {
     const {categoryId , brandId , productId} = req.query;
 
@@ -185,9 +191,6 @@ export const getRelatedProducts = async (req, res) => {
 
     res.status(200).json({ products: relatedProducts });
   } catch (error) {
-    res.status(500).json({
-      message: "Failed to fetch products",
-      error: error.message,
-    });
+    next(error)
   }
 };

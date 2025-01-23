@@ -1,17 +1,17 @@
 import Brand from "../model/brandModel.js";
 
 // Method GET || Get all brands
-export const getAllBrands = async (req, res) => {
+export const getAllBrands = async (req, res,next) => {
   try {
     const brands = await Brand.find();
     res.status(200).json({ success: true, brands });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error)
   }
 };
 
 // Method Post || Add new brand
-export const addNewBrands = async (req, res) => {
+export const addNewBrands = async (req, res,next) => {
   const { title, description } = req.body;
   try {
     if (!title || !description) {
@@ -27,12 +27,12 @@ export const addNewBrands = async (req, res) => {
       .status(201)
       .json({ success: true, message: "Brands added successfully.", brand });
   } catch (error) {
-    res.status(500).json({ status: false, message: error.message });
+    next(error)
   }
 };
 
 // Method Patch || ist & Unlist brand
-export const updateBrandStatus = async (req, res) => {
+export const updateBrandStatus = async (req, res,next) => {
   const { brandId } = req.body;
 
   try {
@@ -51,12 +51,12 @@ export const updateBrandStatus = async (req, res) => {
       .status(200)
       .json({ success: true, message: "brand status updated.", brand });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error)
   }
 };
 
 // Method Put || Update brand
-export const updateBrand = async (req, res) => {
+export const updateBrand = async (req, res,next) => {
   const { _id: brandId, title, description } = req.body;
   try {
     const brand = await Brand.findById(brandId);
@@ -74,6 +74,6 @@ export const updateBrand = async (req, res) => {
       .status(200)
       .json({ success: true, message: "Brand updated successfully" });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error)
   }
 };

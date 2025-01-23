@@ -7,6 +7,7 @@ import adminRoute from "./routes/adminRoute.js";
 import userRouter from "./routes/userRoutes.js";
 import client from "./config/redis.js";
 import googleRoute from "./routes/googleRoute.js";
+import errorHandler from "./middleware/errorHandler.js";
 dotenv.config();
 
 const app = express();
@@ -41,6 +42,8 @@ client.on("error", (error) => {
 app.use("/api/admin", adminRoute); 
 app.use("/api/user", userRouter);
 app.use("/api/google",googleRoute)
+
+app.use(errorHandler);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

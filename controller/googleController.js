@@ -25,10 +25,10 @@ const setCookies = (res, accessToken, refreshToken) => {
 };
 
 // Login handler
-export const login = async (req, res) => {
+export const login = async (req, res,next) => {
   try {
     const { token } = req.body;
-    // Verify the Google token
+    console.log(req.body)
     const ticket = await client.verifyIdToken({
       idToken: token,
       audience: process.env.GOOGLE_CLIENT_ID,
@@ -39,7 +39,6 @@ export const login = async (req, res) => {
     let user = await User.findOne({ email });
 
     if (!user) {
-      // Create a new user if not found
       user = await User.create({
         firstName,
         lastName,
@@ -49,7 +48,6 @@ export const login = async (req, res) => {
       });
     }
 
-    // Check if the user is blocked
     if (user.isBlocked) {
       return res.status(403).json({
         success: false,
@@ -62,16 +60,13 @@ export const login = async (req, res) => {
       role: "user",
     };
 
-    // Generate tokens
     const accessToken = generateAccessToken(userData);
     const refreshToken = generateRefreshToken(userData);
 
     await storeRefreshToken(user._id, refreshToken);
 
-    // Set cookies for the tokens
     setCookies(res, accessToken, refreshToken);
 
-    // Send the response
     res.status(200).json({
       success: true,
       message: "Login successful",
@@ -84,7 +79,6 @@ export const login = async (req, res) => {
         isBlocked: user.isBlocked
     });
   } catch (error) {
-    console.error("Google login error:", error);
-    res.status(500).json({ success: false, message: "Google login failed" });
+    next(error)
   }
 };

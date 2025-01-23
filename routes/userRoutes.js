@@ -8,8 +8,10 @@ import {
   sendOtp,
   verifyResetOtp,
   verifySignUpOtp,
+  verifyUserStatus,
 } from "../controller/userController.js";
 import { getAllProducts, getProductDetails, getRelatedProducts } from "../controller/productController.js";
+import { verifyToken } from "../middleware/verifyToken.js";
 
 const userRouter = express.Router();
 
@@ -30,5 +32,6 @@ userRouter.get('/related-products',getRelatedProducts)
 
 // ----------------------------------------------------
 userRouter.get('/token',newAccessToken)
+userRouter.get('/verify-user-status',verifyToken,verifyUserStatus)
 
 export default userRouter;

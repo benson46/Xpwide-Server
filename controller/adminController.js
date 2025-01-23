@@ -23,7 +23,7 @@ const setCookies = (res, accessToken, refreshToken) => {
 };
 
 // Method Post || Admin Login
-export const adminLogin = async (req, res) => {
+export const adminLogin = async (req, res,next) => {
   const { email, password } = req.body;
 
   try {
@@ -59,12 +59,12 @@ export const adminLogin = async (req, res) => {
       });
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error)
   }
 };
 
 // Method Post || Admin Logout
-export const adminLogout = async (req, res) => {
+export const adminLogout = async (req, res,next) => {
   try {
     const adminRefreshToken = req.cookies.adminRefreshToken;
 
@@ -76,12 +76,12 @@ export const adminLogout = async (req, res) => {
     res.clearCookie("refreshToken");
     res.json({ message: "Logged out successfully." });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error)
   }
 };
 
 // Method Get || Get users list
-export const getUsersList = async (req, res) => {
+export const getUsersList = async (req, res,next) => {
   const { page = 1, limit = 10 } = req.query;
   const skip = (page - 1) * limit;
 
@@ -106,14 +106,12 @@ export const getUsersList = async (req, res) => {
       users: usersList,
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error fetching user list", error: error.message });
+    next(error)
   }
 };
 
 // Method Patch || Block User
-export const updateUserStatus = async (req, res) => {
+export const updateUserStatus = async (req, res,next) => {
   const { userId } = req.body;
   console.log(userId)
    
@@ -142,14 +140,12 @@ export const updateUserStatus = async (req, res) => {
     });
 
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: "Server error", error: error.message });
+   next(error)
   }
 };
 
 
-export const checkUserStatus = async (req, res) => {
+export const checkUserStatus = async (req, res , next) => {
   const userId = req.query.userId;
 
   if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
@@ -169,8 +165,7 @@ export const checkUserStatus = async (req, res) => {
 
     return res.status(200).json({ message: "User is active" });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: "Internal server error" });
+    next(error)
   }
 };
 
