@@ -13,27 +13,27 @@ import {
 import {
   generateAccessToken,
   generateRefreshToken,
-} from "../utils/jwt/generateToken.js"; 
-import { JWT } from "google-auth-library";
+  refreshAccessToken,
+} from "../utils/jwt/generateToken.js";
 
 // Set access and refresh tokens in cookies
 const setCookies = (res, accessToken, refreshToken) => {
   res.cookie("accessToken", accessToken, {
     httpOnly: true, 
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "None", 
+    secure: false,
+    sameSite: "strict", 
     maxAge: 15 * 60 * 1000, // Expiry time: 15 minutes
   });
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true, 
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "None",
+    secure: false,
+    sameSite: "strict",
     maxAge: 7 * 24 * 60 * 60 * 1000, // Expiry time: 7 days
   });
 };
 
 // Method Post || Sendotp
-export const sendOtp = async (req, res,next) => {
+export const sendOtp = async (req, res, next) => {
   const { formData } = req.body;
 
   if (
@@ -58,12 +58,12 @@ export const sendOtp = async (req, res,next) => {
     sendVerificationMail(formData.email, otp);
     res.status(200).json({ message: "OTP send successfully" });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 
 // Method Post || Verifyotp
-export const verifySignUpOtp = async (req, res,next) => {
+export const verifySignUpOtp = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
 
@@ -94,14 +94,13 @@ export const verifySignUpOtp = async (req, res,next) => {
       message: "User email verified successfully",
     });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 
-export const verifyResetOtp = async (req, res,next) => {
+export const verifyResetOtp = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
-
 
     if (!email || !otp) {
       return res.status(400).json({ message: "Email and OTP are required." });
@@ -128,16 +127,15 @@ export const verifyResetOtp = async (req, res,next) => {
       status: "VERIFIED",
       message: "OTP verified successfully. Proceed to reset your password.",
     });
-  } catch (error) {    
-    next(error)
+  } catch (error) {
+    next(error);
   }
 };
 
 // Method Post || Resendotp
-export const resendOtp = async (req, res,next) => {
+export const resendOtp = async (req, res, next) => {
   const { email } = req.body;
   try {
-
     if (!email) {
       throw new Error("Email is required.");
     }
@@ -154,7 +152,7 @@ export const resendOtp = async (req, res,next) => {
       message: "OTP has been resent successfully. Please check your inbox.",
     });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 
@@ -174,7 +172,7 @@ export const resetPasswordOtp = async (req, res) => {
   sendVerificationMail(email, otp);
 };
 
-export const resetPassword = async (req, res,next) => {
+export const resetPassword = async (req, res, next) => {
   try {
     const { password, email } = req.body;
 
@@ -189,7 +187,6 @@ export const resetPassword = async (req, res,next) => {
       return res.status(404).json({ message: "User not found." });
     }
 
-
     const hashedPassword = await hashPassword(password);
 
     user.password = hashedPassword;
@@ -197,12 +194,12 @@ export const resetPassword = async (req, res,next) => {
 
     res.json({ message: "Password reset successfully." });
   } catch (error) {
-    next(error)
-
+    next(error);
   }
 };
+
 // Method Post || Login
-export const login = async (req, res,next) => {
+export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
@@ -252,12 +249,12 @@ export const login = async (req, res,next) => {
       });
     }
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 
 // Method Post || Logout
-export const logout = async (req, res,next) => {
+export const logout = async (req, res, next) => {
   try {
     const refreshToken = req.cookies.refreshToken;
     const userId = req.body;
@@ -265,78 +262,36 @@ export const logout = async (req, res,next) => {
       await storeRefreshToken(userId, null);
     }
     res.clearCookie("refreshToken");
+    res.clearCookie("accessToken");
     res.json({ message: "Logged out successfully." });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 
-
-
-export const newAccessToken = async (req, res, next) => {
+export const refreshUserAccessToken = async (req, res) => {
   try {
-    const { refreshToken } = req.cookies;
-    console.log("object")
-    console.log(req.cookies)
+    const refreshToken = req.cookies.refreshToken;
     if (!refreshToken) {
-      return res.status(401).json({ message: "Refresh token missing" });
+      return res.status(401).json({ message: "Refresh token is missing." });
     }
 
-    // Verify the refresh token and decode the userId
-    const decoded = JWT.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
-    const userId = decoded.userId;
-
-    // Retrieve stored refresh token data from DB or cache
-    const storedRefreshToken = await storeRefreshToken(userId); // assuming this returns the refresh token data
-    if (!storedRefreshToken) {
-      return res.status(403).json({ message: "Invalid refresh token" });
+    // Verify the refresh token and extract the payload
+    const decodedRefreshToken = jwt.verify(refreshToken, 'your_refresh_token_secret');
+    
+    // Verify the access token expiration
+    const decodedAccessToken = jwt.decode(req.headers['authorization'].split(' ')[1]); // Extract token from header
+    const currentTime = Math.floor(Date.now() / 1000); // Get current time in seconds
+    if (decodedAccessToken.exp < currentTime) {
+      return res.status(401).json({ message: "Access token has expired." });
     }
 
-    // Check if refresh token has expired
-    if (storedRefreshToken.expiresAt <= new Date()) {
-      await redis.del(`refresh_token:${userId}`);
-      res.clearCookie("accessToken");
-      res.clearCookie("refreshToken");
-      return res.status(403).json({ message: "Refresh token expired, please log in again." });
-    }
+    // Generate a new access token using the refresh token
+    const newAccessToken = await refreshAccessToken(refreshToken);
 
-    // Generate a new access token
-    const userData = { id: userId, role: decoded.role }; // use decoded data for user info
-    const newAccessToken = generateAccessToken(userData);
-
-    // Set new access token in cookies
-    setCookies(res, newAccessToken);
-
-    return res.status(200).json({
-      message: "Token refreshed successfully",
-      accessToken: newAccessToken,
-    });
+    return res.status(200).json({ accessToken: newAccessToken });
   } catch (error) {
-    next(error);
-  }
-};
-
-export const verifyUserStatus = async (req, res, next) => {
-  try {
-    const userId = req.user.id;
-    console.log(userId)
-    const user = await User.findById(userId);
-
-    if (!user) {
-      const error = new Error("User not found");
-      error.statusCode = 404;
-      throw error;
-    }
-
-    return res.status(200).json({
-      success: true,
-      user: {
-        id: user._id,
-        email: user.email,
-        isBlocked: user.isBlocked,
-      },
-    });
-  } catch (error) {
-    next(error);
+    console.error("Error refreshing access token:", error.message);
+    return res.status(403).json({ message: "Invalid or expired refresh token." });
   }
 };

@@ -2,16 +2,14 @@ import express from "express";
 import {
   login,
   logout,
-  newAccessToken,
+  refreshUserAccessToken,
   resendOtp,
   resetPassword,
   sendOtp,
   verifyResetOtp,
   verifySignUpOtp,
-  verifyUserStatus,
 } from "../controller/userController.js";
 import { getAllProducts, getCategoryProducts, getProductDetails, getRelatedProducts } from "../controller/productController.js";
-import { verifyToken } from "../middleware/verifyToken.js";
 import { getAllCategories } from "../controller/categoryController.js";
 
 const userRouter = express.Router();
@@ -35,7 +33,5 @@ userRouter.get('/related-products',getRelatedProducts)
 userRouter.get('/products:/category',getCategoryProducts)
 
 // ----------------------------------------------------
-userRouter.get('/token',newAccessToken)
-userRouter.get('/verify-user-status',verifyToken,verifyUserStatus)
-
+userRouter.post("/refresh-token", refreshUserAccessToken);
 export default userRouter;

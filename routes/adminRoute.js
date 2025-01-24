@@ -3,7 +3,7 @@ import {
   adminLogin,
   adminLogout,
   getUsersList,
-  newAccessToken,
+  refreshAdminAccessToken,
   updateUserStatus,
 } from "../controller/adminController.js";
 import {
@@ -64,7 +64,6 @@ adminRouter
 adminRouter.put("/products/:products",editProduct)
 
 // ----------------------------------------------------
-
-adminRouter.get("/token", newAccessToken);
+adminRouter.post("/admin/refresh-access-token", refreshAdminAccessToken);
 
 export default adminRouter;

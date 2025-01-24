@@ -1,11 +1,12 @@
 import { hashPassword, comparePassword } from "../utils/secure/password.js";
 import Admin from "../model/adminModel.js";
 import User from "../model/userModel.js";
-import { deleteRefreshToken, storeRefreshToken } from "../config/redis.js";
+import { storeRefreshToken } from "../config/redis.js";
 import { convertDateToMonthAndYear } from "../config/dateConvertion.js";
 import {
   generateAccessToken,
   generateRefreshToken,
+  refreshAccessToken,
 } from "../utils/jwt/generateToken.js";
 
 // Set access and refresh tokens in cookies
@@ -181,52 +182,20 @@ export const updateUserStatus = async (req, res, next) => {
   }
 };
 
-export const newAccessToken = async (req, res, next) => {
+
+
+// Method Post || Refresh Access Token
+export const refreshAdminAccessToken = async (req, res, next) => {
   try {
-    const { refreshToken } = req.cookies;
-
-    // Ensure the refresh token exists
-    if (!refreshToken) {
-      return res.status(401).json({ message: "Refresh token missing" });
+    const { adminRefreshToken } = req.cookies;
+    
+    if (!adminRefreshToken) {
+      return res.status(401).json({ message: "Refresh token is missing." });
     }
 
-    // Verify the refresh token
-    let decoded;
-    try {
-      decoded = JWT.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
-    } catch (err) {
-      return res.status(403).json({ message: "Invalid refresh token" });
-    }
+    const newAccessToken = refreshAccessToken(adminRefreshToken);
 
-    const { adminId } = decoded;
-
-    // Retrieve the stored refresh token from the database
-    const storedRefreshToken = await storeRefreshToken(adminId, null); // Adjust to fetch the actual stored token from the database
-
-    // Ensure the stored refresh token matches
-    if (!storedRefreshToken || storedRefreshToken !== refreshToken) {
-      return res.status(403).json({ message: "Invalid refresh token" });
-    }
-
-    // Check if the refresh token has expired
-    if (storedRefreshToken.expiresAt <= new Date()) {
-      await redis.del(`refresh_token:${adminId}`); // Remove the refresh token from Redis
-      res.clearCookie("accessToken");
-      res.clearCookie("refreshToken");
-      return res
-        .status(403)
-        .json({ message: "Refresh token expired, please log in again." });
-    }
-
-    // Generate a new access token
-    const adminData = { id: adminId, role: decoded.role }; // Use the decoded data from the refresh token
-    const newAccessToken = generateAccessToken(adminData);
-
-    // Set the new access token as a cookie
-    setCookies(res, newAccessToken);
-
-    return res.status(200).json({
-      message: "Token refreshed successfully",
+    res.status(200).json({
       accessToken: newAccessToken,
     });
   } catch (error) {
