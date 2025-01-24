@@ -2,16 +2,16 @@ import User from "../model/userModel.js";
 
 export const isBlockedUser = async (req, res, next) => {
     try {
-      const email = req.body.email || req.headers['user-email'] || req.query.email;
+      const email = req.headers['user-email']; 
       console.log('Email:', email);
 
-      if (!email) {
-        return res.status(400).json({ message: 'Email is required' });
-      }
+      if (email == undefined || !email) {
+         return next();
+        }
   
       const user = await User.findOne({ email });
       if (!user) {
-        return res.status(404).json({ message: 'User not found' });
+        return res.status(404).json({ message: 'User not fo' });
       }
   
       if (user.isBlocked) {

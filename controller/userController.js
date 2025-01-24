@@ -13,7 +13,6 @@ import {
 import {
   generateAccessToken,
   generateRefreshToken,
-  refreshAccessToken,
 } from "../utils/jwt/generateToken.js";
 
 // Set access and refresh tokens in cookies
@@ -279,13 +278,6 @@ export const refreshUserAccessToken = async (req, res) => {
     // Verify the refresh token and extract the payload
     const decodedRefreshToken = jwt.verify(refreshToken, 'your_refresh_token_secret');
     
-    // Verify the access token expiration
-    const decodedAccessToken = jwt.decode(req.headers['authorization'].split(' ')[1]); // Extract token from header
-    const currentTime = Math.floor(Date.now() / 1000); // Get current time in seconds
-    if (decodedAccessToken.exp < currentTime) {
-      return res.status(401).json({ message: "Access token has expired." });
-    }
-
     // Generate a new access token using the refresh token
     const newAccessToken = await refreshAccessToken(refreshToken);
 

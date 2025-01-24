@@ -31,6 +31,22 @@ export const storeRefreshToken = async (userId, value) => {
 	}
 };
 
+export const getRefreshToken = async (userId) => {
+	try {
+		const refreshToken = await client.get(`refreshToken${userId}`);
+		if(refreshToken){
+			// console.log(refreshToken)
+		return refreshToken.trim();
+		}
+
+		return "Refresh Token expired"
+
+	} catch (error) {
+		console.log(error);
+		return error;
+	}
+};
+
 export const deleteRefreshToken = async (userId) => {
 	try {
 		if (!userId || typeof userId !== 'string') {

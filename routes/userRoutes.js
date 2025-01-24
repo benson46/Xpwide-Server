@@ -12,6 +12,7 @@ import {
 import { getAllProducts, getCategoryProducts, getProductDetails, getRelatedProducts } from "../controller/productController.js";
 import { getAllCategories } from "../controller/categoryController.js";
 import { isBlockedUser } from "../middleware/isBlockedUser.js";
+import { authenticateUser } from "../middleware/authenticateUser.js";
 
 const userRouter = express.Router();
 
@@ -25,7 +26,7 @@ userRouter.post("/login", login);
 userRouter.post("/logout", logout);
 // ----------------------------------------------------
 
-userRouter.get('/category',getAllCategories)
+userRouter.get('/category',isBlockedUser,getAllCategories)
 // ----------------------------------------------------
 
 userRouter.get('/products',isBlockedUser, getAllProducts);

@@ -20,6 +20,7 @@ import {
   updateBrandStatus,
 } from "../controller/brandController.js";
 import { addNewProduct, editProduct, getAllProducts, updateProductStatus } from "../controller/productController.js";
+import { authenticateAdmin } from "../middleware/authenticateAdmin.js";
 
 const adminRouter = express.Router();
 // ----------------------------------------------------
@@ -30,40 +31,40 @@ adminRouter.post("/logout", adminLogout);
 // ----------------------------------------------------
 
 adminRouter.route("/users-list")
-.get(getUsersList)
-.patch(updateUserStatus);
+.get(authenticateAdmin,getUsersList)
+.patch(authenticateAdmin,updateUserStatus);
 
 
 // ----------------------------------------------------
 
 adminRouter
   .route("/category")
-  .get(getAllCategories)
-  .post(addNewCategory)
-  .patch(updateCategoryStatus);
+  .get(authenticateAdmin,getAllCategories)
+  .post(authenticateAdmin,addNewCategory)
+  .patch(authenticateAdmin,updateCategoryStatus);
 
-adminRouter.route("/category/:categoryID").put(updateCategory);
+adminRouter.route("/category/:categoryID").put(authenticateAdmin,updateCategory);
 
 // ----------------------------------------------------
 
 adminRouter
   .route("/brands")
-  .get(getAllBrands)
-  .post(addNewBrands)
-  .patch(updateBrandStatus);
+  .get(authenticateAdmin,getAllBrands)
+  .post(authenticateAdmin,addNewBrands)
+  .patch(authenticateAdmin,updateBrandStatus);
 
-adminRouter.route("/brands/:brandId").put(updateBrand);
+adminRouter.route("/brands/:brandId").put(authenticateAdmin,updateBrand);
 
 // ----------------------------------------------------
 adminRouter
   .route("/products")
-  .get(getAllProducts)
-  .post(addNewProduct)
-  .patch(updateProductStatus);
+  .get(authenticateAdmin,getAllProducts)
+  .post(authenticateAdmin,addNewProduct)
+  .patch(authenticateAdmin,updateProductStatus);
   
-adminRouter.put("/products/:products",editProduct)
+adminRouter.put("/products/:products",authenticateAdmin,editProduct)
 
 // ----------------------------------------------------
-adminRouter.post("/admin/refresh-access-token", refreshAdminAccessToken);
+adminRouter.post("/refresh-access-token", refreshAdminAccessToken);
 
 export default adminRouter;

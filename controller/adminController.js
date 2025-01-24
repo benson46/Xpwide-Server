@@ -1,26 +1,29 @@
 import { hashPassword, comparePassword } from "../utils/secure/password.js";
 import Admin from "../model/adminModel.js";
 import User from "../model/userModel.js";
-import { deleteRefreshToken, storeRefreshToken } from "../config/redis.js";
+import {
+  deleteRefreshToken,
+  getRefreshToken,
+  storeRefreshToken,
+} from "../config/redis.js";
 import { convertDateToMonthAndYear } from "../config/dateConvertion.js";
 import {
   generateAccessToken,
   generateRefreshToken,
-  refreshAccessToken,
 } from "../utils/jwt/generateToken.js";
-
+import jwt from "jsonwebtoken";
 // Set access and refresh tokens in cookies
 const setCookies = (res, accessToken, refreshToken) => {
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "None",
+    secure: false,
+    sameSite: "strict",
     maxAge: 15 * 60 * 1000, // Expiry time: 15 minutes
   });
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "None",
+    secure: false,
+    sameSite: "strict",
     maxAge: 7 * 24 * 60 * 60 * 1000, // Expiry time: 7 days
   });
 };
@@ -60,6 +63,7 @@ const setCookies = (res, accessToken, refreshToken) => {
 
 export const adminLogin = async (req, res, next) => {
   const { email, password } = req.body;
+  console.log(email);
 
   try {
     if (!email || !password) {
@@ -161,8 +165,8 @@ export const updateUserStatus = async (req, res, next) => {
     }
 
     const isCurrentlyBlocked = userData.isBlocked;
-    if(isCurrentlyBlocked){
-      await deleteRefreshToken(userId)
+    if (isCurrentlyBlocked) {
+      await deleteRefreshToken(userId);
     }
 
     const updatedUserData = await User.findByIdAndUpdate(
@@ -170,7 +174,6 @@ export const updateUserStatus = async (req, res, next) => {
       { $set: { isBlocked: !userData.isBlocked } },
       { new: true }
     );
-
 
     res.json({
       success: true,
@@ -182,19 +185,32 @@ export const updateUserStatus = async (req, res, next) => {
   }
 };
 
-
-
 // Method Post || Refresh Access Token
 export const refreshAdminAccessToken = async (req, res, next) => {
   try {
-    const { adminRefreshToken } = req.cookies;
-    
-    if (!adminRefreshToken) {
-      return res.status(401).json({ message: "Refresh token is missing." });
+    const { refreshToken } = req.cookies;
+
+    if (!refreshToken) {
+      return res.status(403).json({ message: "Refresh token is missing." });
     }
 
-    const newAccessToken = refreshAccessToken(adminRefreshToken);
+    const decode = await jwt.verify(
+      refreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
 
+    const refreshTokenFromRedis = await getRefreshToken(decode.id);
+    const cleanedRedisToken = refreshTokenFromRedis.replace(/^"|"$/g, ''); // Remove surrounding quotes
+    console.log("Refresh Token from Cookie:", refreshToken);
+    console.log("Refresh Token from Redis:", cleanedRedisToken);
+    console.log("Are they equal?", refreshToken == cleanedRedisToken);
+
+    if (!refreshTokenFromRedis || refreshToken !== JSON.parse(refreshTokenFromRedis)) {
+      return res.status(403).json({ message: "Invalid or mismatched token." });
+    }
+    
+
+    const newAccessToken = generateAccessToken(decode);
     res.status(200).json({
       accessToken: newAccessToken,
     });
