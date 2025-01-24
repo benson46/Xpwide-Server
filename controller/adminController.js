@@ -1,10 +1,12 @@
 import { hashPassword, comparePassword } from "../utils/secure/password.js";
 import Admin from "../model/adminModel.js";
 import User from "../model/userModel.js";
-import mongoose from "mongoose";
 import { deleteRefreshToken, storeRefreshToken } from "../config/redis.js";
 import { convertDateToMonthAndYear } from "../config/dateConvertion.js";
-import { generateAccessToken, generateRefreshToken } from "../utils/jwt/generateToken.js";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+} from "../utils/jwt/generateToken.js";
 
 // Set access and refresh tokens in cookies
 const setCookies = (res, accessToken, refreshToken) => {
@@ -22,8 +24,40 @@ const setCookies = (res, accessToken, refreshToken) => {
   });
 };
 
+// export const adminSignup = async (req, res) => {
+// 	const { email, password } = req.body;
+
+// 	try {
+// 		if (!email || !password) {
+// 			return res
+// 				.status(400)
+// 				.json({ message: "Email and password are required." });
+// 		}
+
+// 		const existingAdmin = await Admin.findOne({ email });
+// 		if (existingAdmin) {
+// 			return res.status(409).json({ message: "Admin already exists." });
+// 		}
+
+// 		const hashedPassword = await hashPassword(password);
+// 		const admin = await Admin.create({ email, password: hashedPassword });
+
+//     const accessToken = generateAccessToken(admin._id,admin.role)
+// 		const  refreshToken = generateRefreshToken(admin._id,admin.role);
+// 		await storeRefreshToken(admin._id, refreshToken);
+// 		setCookies(res, accessToken, refreshToken);
+
+// 		res.status(201).json({
+// 			admin: { _id: admin._id, email: admin.email, role: admin.role },
+// 		});
+// 	} catch (error) {
+// 		res.status(500).json({ message: error.message });
+// 	}
+// };
+
 // Method Post || Admin Login
-export const adminLogin = async (req, res,next) => {
+
+export const adminLogin = async (req, res, next) => {
   const { email, password } = req.body;
 
   try {
@@ -35,53 +69,57 @@ export const adminLogin = async (req, res,next) => {
 
     const admin = await Admin.findOne({ email });
     if (!admin) {
-      return res.status(404).json({ message: "Admin not found." });
+      return res.status(404).json({ message: "Invalid Credintials." });
     }
     const match = await comparePassword(password, admin.password);
     if (match) {
       const adminData = {
-        id:admin._id,
-        role:admin.role,
-      }
+        id: admin._id,
+        role: admin.role,
+      };
       const accessToken = generateAccessToken(adminData);
       const refreshToken = generateRefreshToken(adminData);
-
 
       await storeRefreshToken(admin._id, refreshToken);
       setCookies(res, accessToken, refreshToken);
 
       res.status(200).json({
-        admin: { _id: admin._id, email: admin.email, role: admin.role },
+        admin: {
+          _id: admin._id,
+          email: admin.email,
+          role: admin.role,
+          accessToken,
+        },
       });
     } else {
-      return res.status(401).json({
-        message: "Invalid password.",
+      return res.status(404).json({
+        message: "Invalid Credintials.",
       });
     }
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 
 // Method Post || Admin Logout
-export const adminLogout = async (req, res,next) => {
+export const adminLogout = async (req, res, next) => {
   try {
     const adminRefreshToken = req.cookies.adminRefreshToken;
 
-    if(adminRefreshToken){
-      await storeRefreshToken(adminId, null); 
+    if (adminRefreshToken) {
+      await storeRefreshToken(adminId, null);
     }
 
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
     res.json({ message: "Logged out successfully." });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 
 // Method Get || Get users list
-export const getUsersList = async (req, res,next) => {
+export const getUsersList = async (req, res, next) => {
   const { page = 1, limit = 10 } = req.query;
   const skip = (page - 1) * limit;
 
@@ -106,15 +144,15 @@ export const getUsersList = async (req, res,next) => {
       users: usersList,
     });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 
 // Method Patch || Block User
-export const updateUserStatus = async (req, res,next) => {
+export const updateUserStatus = async (req, res, next) => {
   const { userId } = req.body;
-  console.log(userId)
-   
+  console.log(userId);
+
   try {
     const userData = await User.findById(userId);
     if (!userData) {
@@ -131,41 +169,67 @@ export const updateUserStatus = async (req, res,next) => {
       { new: true }
     );
 
-    console.log(updatedUserData)
+    console.log(updatedUserData);
 
     res.json({
       success: true,
       message: `User ${updatedUserData.isBlocked ? "blocked" : "unblocked"}`,
       updatedUserData,
     });
-
   } catch (error) {
-   next(error)
+    next(error);
   }
 };
 
-
-export const checkUserStatus = async (req, res , next) => {
-  const userId = req.query.userId;
-
-  if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-    return res.status(400).json({ message: "Invalid or missing userId" });
-  }
-
+export const newAccessToken = async (req, res, next) => {
   try {
-    const user = await User.findById(userId); 
+    const { refreshToken } = req.cookies;
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+    // Ensure the refresh token exists
+    if (!refreshToken) {
+      return res.status(401).json({ message: "Refresh token missing" });
     }
 
-    if (user.isBlocked) {
-      return res.status(403).json({ message: "User is blocked" });
+    // Verify the refresh token
+    let decoded;
+    try {
+      decoded = JWT.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    } catch (err) {
+      return res.status(403).json({ message: "Invalid refresh token" });
     }
 
-    return res.status(200).json({ message: "User is active" });
+    const { adminId } = decoded;
+
+    // Retrieve the stored refresh token from the database
+    const storedRefreshToken = await storeRefreshToken(adminId, null); // Adjust to fetch the actual stored token from the database
+
+    // Ensure the stored refresh token matches
+    if (!storedRefreshToken || storedRefreshToken !== refreshToken) {
+      return res.status(403).json({ message: "Invalid refresh token" });
+    }
+
+    // Check if the refresh token has expired
+    if (storedRefreshToken.expiresAt <= new Date()) {
+      await redis.del(`refresh_token:${adminId}`); // Remove the refresh token from Redis
+      res.clearCookie("accessToken");
+      res.clearCookie("refreshToken");
+      return res
+        .status(403)
+        .json({ message: "Refresh token expired, please log in again." });
+    }
+
+    // Generate a new access token
+    const adminData = { id: adminId, role: decoded.role }; // Use the decoded data from the refresh token
+    const newAccessToken = generateAccessToken(adminData);
+
+    // Set the new access token as a cookie
+    setCookies(res, newAccessToken);
+
+    return res.status(200).json({
+      message: "Token refreshed successfully",
+      accessToken: newAccessToken,
+    });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
-

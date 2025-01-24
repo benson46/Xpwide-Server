@@ -12,15 +12,15 @@ export const getAllCategories = async (req, res,next) => {
 
 // Method Post || Add new category
 export const addNewCategory = async (req, res,next) => {
-  const { title, description } = req.body;
+  const { title, icon } = req.body;
   try {
-    if (!title || !description) {
+    if (!title || !icon) {
       return res
         .status(400)
         .json({ success: false, message: "All fields are required" });
     }
 
-    const category = new Category({ title, description });
+    const category = new Category({ title, icon });
     await category.save();
 
     res.status(201).json({
@@ -57,7 +57,7 @@ export const updateCategoryStatus = async (req, res,next) => {
 
 // Method Put || Update category
 export const updateCategory = async (req, res,next) => {
-  const { categoryId, title, description } = req.body;
+  const { categoryId, title, icon } = req.body;
   try {
     const category = await Category.findById(categoryId);
     if (!category) {
@@ -67,7 +67,7 @@ export const updateCategory = async (req, res,next) => {
     }
 
     category.title = title || category.title;
-    category.description = description || category.description;
+    category.icon = icon || category.icon;
     await category.save();
 
     res

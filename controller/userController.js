@@ -272,50 +272,54 @@ export const logout = async (req, res,next) => {
 };
 
 
-export const newAccessToken = async (req, res,next) => {
+
+export const newAccessToken = async (req, res, next) => {
   try {
     const { refreshToken } = req.cookies;
+    console.log("object")
+    console.log(req.cookies)
     if (!refreshToken) {
       return res.status(401).json({ message: "Refresh token missing" });
     }
 
-    const storedRefreshToken = await storeRefreshToken(userId, null);
+    // Verify the refresh token and decode the userId
+    const decoded = JWT.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    const userId = decoded.userId;
 
-    if(!storedRefreshToken){
-      return res.status(403).json({mesage:"Invalid refresh token"})
+    // Retrieve stored refresh token data from DB or cache
+    const storedRefreshToken = await storeRefreshToken(userId); // assuming this returns the refresh token data
+    if (!storedRefreshToken) {
+      return res.status(403).json({ message: "Invalid refresh token" });
     }
 
-    if (storeRefreshToken.expiresAt <= new Date()) {
-      await redis.del(`refresh_token:${decoded.userId}`);
+    // Check if refresh token has expired
+    if (storedRefreshToken.expiresAt <= new Date()) {
+      await redis.del(`refresh_token:${userId}`);
       res.clearCookie("accessToken");
       res.clearCookie("refreshToken");
-      return res
-        .status(403)
-        .json({ message: "Refresh token expired, please log in again." });
+      return res.status(403).json({ message: "Refresh token expired, please log in again." });
     }
 
-
-    const user = JWT.verify(refreshToken,process.env.REFRESH_TOKEN_SECRET)
-
-    const userData = {id:user._id,role:user.role};
-
-
+    // Generate a new access token
+    const userData = { id: userId, role: decoded.role }; // use decoded data for user info
     const newAccessToken = generateAccessToken(userData);
-    
+
+    // Set new access token in cookies
     setCookies(res, newAccessToken);
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Token refreshed successfully",
       accessToken: newAccessToken,
     });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 
 export const verifyUserStatus = async (req, res, next) => {
   try {
     const userId = req.user.id;
+    console.log(userId)
     const user = await User.findById(userId);
 
     if (!user) {

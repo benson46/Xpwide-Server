@@ -32,6 +32,27 @@ export const getAllProducts = async (req, res,next) => {
   }
 };
 
+export const getCategoryProducts = async (req,res,next) =>{
+   try {
+    const {category} = req.query
+    console.log(req.query);
+
+    const products = await Product.find()
+    .populate({
+      path:"category",
+      select:"tilte isBlocked",
+    })
+
+    const filteredProducts = products.filter((products)=>{
+      return product.category.title == category.tilte;
+    })
+    console.log(filteredProducts)
+    return res.status(200).json({products:filteredProducts})
+   } catch (error) {
+    
+   }
+}
+
 // Method POST || Add a new product
 export const addNewProduct = async (req, res,next) => {
   const { name, brand, category, description, price, stock, images } = req.body;
@@ -194,3 +215,5 @@ export const getRelatedProducts = async (req, res,next) => {
     next(error)
   }
 };
+
+

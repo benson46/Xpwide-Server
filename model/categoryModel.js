@@ -6,7 +6,7 @@ const categorySchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
-  description: {
+  icon: {
     type: String,
     required: true,
     trim: true,

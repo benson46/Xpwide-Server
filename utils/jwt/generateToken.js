@@ -18,7 +18,7 @@ export const generateRefreshToken = (user) => {
     role: user.role,
   };
 
-  const expiresIn = REFRESH_TOKEN_LIFETIME;
+  const expiresIn = process.env.REFRESH_TOKEN_LIFETIME;
 
   return jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, { expiresIn });
 };

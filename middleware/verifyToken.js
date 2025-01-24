@@ -18,7 +18,9 @@ export const verifyToken = (req, res, next) => {
       return res.status(400).json({ message: "Invalid token: No user ID found" });
     }
 
-    req.user = decoded; 
+
+      req.user = decoded;
+
     next();
   } catch (error) {
     return res.status(401).json({ message: "Unauthorized", error: error.message });
