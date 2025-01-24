@@ -22,7 +22,7 @@ app.use(
     origin: ["http://localhost:5173"], // Frontend domain(s)
     credentials: true, // Allow credentials (cookies, authorization headers, etc.)
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"], // Allowed HTTP methods
-    allowedHeaders: ["Content-Type", "Authorization"], // Include custom headers if used
+    allowedHeaders: ["Content-Type", "Authorization","User-Email"], // Include custom headers if used
   })
 );
 

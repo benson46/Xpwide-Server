@@ -35,7 +35,6 @@ export const getAllProducts = async (req, res,next) => {
 export const getCategoryProducts = async (req,res,next) =>{
    try {
     const {category} = req.query
-    console.log(req.query);
 
     const products = await Product.find()
     .populate({
@@ -46,7 +45,6 @@ export const getCategoryProducts = async (req,res,next) =>{
     const filteredProducts = products.filter((products)=>{
       return product.category.title == category.tilte;
     })
-    console.log(filteredProducts)
     return res.status(200).json({products:filteredProducts})
    } catch (error) {
     

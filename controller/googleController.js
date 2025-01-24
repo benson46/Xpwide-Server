@@ -28,7 +28,6 @@ const setCookies = (res, accessToken, refreshToken) => {
 export const login = async (req, res,next) => {
   try {
     const { token } = req.body;
-    console.log(req.body)
     const ticket = await client.verifyIdToken({
       idToken: token,
       audience: process.env.GOOGLE_CLIENT_ID,

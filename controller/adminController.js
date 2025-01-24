@@ -1,7 +1,7 @@
 import { hashPassword, comparePassword } from "../utils/secure/password.js";
 import Admin from "../model/adminModel.js";
 import User from "../model/userModel.js";
-import { storeRefreshToken } from "../config/redis.js";
+import { deleteRefreshToken, storeRefreshToken } from "../config/redis.js";
 import { convertDateToMonthAndYear } from "../config/dateConvertion.js";
 import {
   generateAccessToken,
@@ -110,7 +110,6 @@ export const adminLogout = async (req, res, next) => {
     if (adminRefreshToken) {
       await storeRefreshToken(adminId, null);
     }
-
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
     res.json({ message: "Logged out successfully." });
@@ -152,7 +151,6 @@ export const getUsersList = async (req, res, next) => {
 // Method Patch || Block User
 export const updateUserStatus = async (req, res, next) => {
   const { userId } = req.body;
-  console.log(userId);
 
   try {
     const userData = await User.findById(userId);
@@ -163,6 +161,9 @@ export const updateUserStatus = async (req, res, next) => {
     }
 
     const isCurrentlyBlocked = userData.isBlocked;
+    if(isCurrentlyBlocked){
+      await deleteRefreshToken(userId)
+    }
 
     const updatedUserData = await User.findByIdAndUpdate(
       userData._id,
@@ -170,7 +171,6 @@ export const updateUserStatus = async (req, res, next) => {
       { new: true }
     );
 
-    console.log(updatedUserData);
 
     res.json({
       success: true,
