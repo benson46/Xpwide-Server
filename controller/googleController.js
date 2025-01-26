@@ -24,7 +24,9 @@ const setCookies = (res, accessToken, refreshToken) => {
   });
 };
 
-// Login handler
+// --------------------------------------------------------------------------------------------------------
+
+// Method Post || Admin Login
 export const login = async (req, res,next) => {
   try {
     const { token } = req.body;

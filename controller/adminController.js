@@ -1,4 +1,4 @@
-import { hashPassword, comparePassword } from "../utils/secure/password.js";
+import { comparePassword } from "../utils/secure/password.js";
 import Admin from "../model/adminModel.js";
 import User from "../model/userModel.js";
 import {
@@ -12,15 +12,16 @@ import {
   generateRefreshToken,
 } from "../utils/jwt/generateToken.js";
 import jwt from "jsonwebtoken";
+
 // Set access and refresh tokens in cookies
-const setCookies = (res, accessToken, refreshToken) => {
-  res.cookie("accessToken", accessToken, {
+const setCookies = (res, adminAccessToken, adminRefreshToken) => {
+  res.cookie("adminAccessToken", adminAccessToken, {
     httpOnly: true,
     secure: false,
     sameSite: "strict",
     maxAge: 15 * 60 * 1000, // Expiry time: 15 minutes
   });
-  res.cookie("refreshToken", refreshToken, {
+  res.cookie("adminRefreshToken", adminRefreshToken, {
     httpOnly: true,
     secure: false,
     sameSite: "strict",
@@ -28,39 +29,9 @@ const setCookies = (res, accessToken, refreshToken) => {
   });
 };
 
-// export const adminSignup = async (req, res) => {
-// 	const { email, password } = req.body;
-
-// 	try {
-// 		if (!email || !password) {
-// 			return res
-// 				.status(400)
-// 				.json({ message: "Email and password are required." });
-// 		}
-
-// 		const existingAdmin = await Admin.findOne({ email });
-// 		if (existingAdmin) {
-// 			return res.status(409).json({ message: "Admin already exists." });
-// 		}
-
-// 		const hashedPassword = await hashPassword(password);
-// 		const admin = await Admin.create({ email, password: hashedPassword });
-
-//     const accessToken = generateAccessToken(admin._id,admin.role)
-// 		const  refreshToken = generateRefreshToken(admin._id,admin.role);
-// 		await storeRefreshToken(admin._id, refreshToken);
-// 		setCookies(res, accessToken, refreshToken);
-
-// 		res.status(201).json({
-// 			admin: { _id: admin._id, email: admin.email, role: admin.role },
-// 		});
-// 	} catch (error) {
-// 		res.status(500).json({ message: error.message });
-// 	}
-// };
+// --------------------------------------------------------------------------------------------------------
 
 // Method Post || Admin Login
-
 export const adminLogin = async (req, res, next) => {
   const { email, password } = req.body;
   console.log(email);
@@ -82,18 +53,18 @@ export const adminLogin = async (req, res, next) => {
         id: admin._id,
         role: admin.role,
       };
-      const accessToken = generateAccessToken(adminData);
-      const refreshToken = generateRefreshToken(adminData);
+      const adminAccessToken = generateAccessToken(adminData);
+      const adminRefreshToken = generateRefreshToken(adminData);
 
-      await storeRefreshToken(admin._id, refreshToken);
-      setCookies(res, accessToken, refreshToken);
+      await storeRefreshToken(admin._id, adminRefreshToken);
+      setCookies(res, adminAccessToken, adminRefreshToken);
 
       res.status(200).json({
         admin: {
           _id: admin._id,
           email: admin.email,
           role: admin.role,
-          accessToken,
+          adminAccessToken,
         },
       });
     } else {
@@ -110,12 +81,14 @@ export const adminLogin = async (req, res, next) => {
 export const adminLogout = async (req, res, next) => {
   try {
     const adminRefreshToken = req.cookies.adminRefreshToken;
+    const adminId = req.body;
+    console.log('id',adminId)
 
     if (adminRefreshToken) {
       await storeRefreshToken(adminId, null);
     }
-    res.clearCookie("accessToken");
-    res.clearCookie("refreshToken");
+    res.clearCookie("adminAccessToken");
+    res.clearCookie("adminRefreshToken");
     res.json({ message: "Logged out successfully." });
   } catch (error) {
     next(error);
@@ -188,33 +161,66 @@ export const updateUserStatus = async (req, res, next) => {
 // Method Post || Refresh Access Token
 export const refreshAdminAccessToken = async (req, res, next) => {
   try {
-    const { refreshToken } = req.cookies;
+    const { adminRefreshToken } = req.cookies;
 
-    if (!refreshToken) {
+    if (!adminRefreshToken) {
       return res.status(403).json({ message: "Refresh token is missing." });
     }
 
     const decode = await jwt.verify(
-      refreshToken,
+      adminRefreshToken,
       process.env.REFRESH_TOKEN_SECRET
     );
 
     const refreshTokenFromRedis = await getRefreshToken(decode.id);
     const cleanedRedisToken = refreshTokenFromRedis.replace(/^"|"$/g, ''); // Remove surrounding quotes
-    console.log("Refresh Token from Cookie:", refreshToken);
-    console.log("Refresh Token from Redis:", cleanedRedisToken);
-    console.log("Are they equal?", refreshToken == cleanedRedisToken);
 
-    if (!refreshTokenFromRedis || refreshToken !== JSON.parse(refreshTokenFromRedis)) {
+
+    if (!cleanedRedisToken || adminRefreshToken !== cleanedRedisToken) {
       return res.status(403).json({ message: "Invalid or mismatched token." });
     }
     
 
     const newAccessToken = generateAccessToken(decode);
     res.status(200).json({
-      accessToken: newAccessToken,
+      adminAccessToken: newAccessToken,
     });
   } catch (error) {
     next(error);
   }
 };
+
+// export const adminSignup = async (req, res) => {
+// 	const { email, password } = req.body;
+
+// 	try {
+// 		if (!email || !password) {
+// 			return res
+// 				.status(400)
+// 				.json({ message: "Email and password are required." });
+// 		}
+
+// 		const existingAdmin = await Admin.findOne({ email });
+// 		if (existingAdmin) {
+// 			return res.status(409).json({ message: "Admin already exists." });
+// 		}
+
+// 		const hashedPassword = await hashPassword(password);
+// 		const admin = await Admin.create({ email, password: hashedPassword });
+
+//     const accessToken = generateAccessToken(admin._id,admin.role)
+// 		const  refreshToken = generateRefreshToken(admin._id,admin.role);
+// 		await storeRefreshToken(admin._id, refreshToken);
+// 		setCookies(res, accessToken, refreshToken);
+
+// 		res.status(201).json({
+// 			admin: { _id: admin._id, email: admin.email, role: admin.role },
+// 		});
+// 	} catch (error) {
+// 		res.status(500).json({ message: error.message });
+// 	}
+// };
+
+// --------------------------------------------------------------------------------------------------------
+
+

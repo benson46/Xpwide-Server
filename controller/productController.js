@@ -3,10 +3,11 @@ import Category from "../model/categoryModel.js";
 import Brand from "../model/brandModel.js";
 import { storeRefreshToken } from "../config/redis.js";
 
-// Method GET || Get all products
-export const getAllProducts = async (req, res,next) => {
+// --------------------------------------------------------------------------------------------------------
 
-  const {isUser} = req.query;
+// Method GET || Get all products
+export const getAllProducts = async (req, res, next) => {
+  const { isUser } = req.query;
 
   try {
     const products = await Product.find()
@@ -18,85 +19,75 @@ export const getAllProducts = async (req, res,next) => {
         path: "brand",
         select: "title",
       });
-      
-      if(isUser){
-        const filteredProducts = products.filter((product)=> {
-          return !product.category.isBlocked
-        })
-        return res.status(200).json({products: filteredProducts})
-      }
-      
+
+    if (isUser) {
+      const filteredProducts = products.filter((product) => {
+        return !product.category.isBlocked;
+      });
+      return res.status(200).json({ products: filteredProducts });
+    }
+
     res.status(200).json({ products });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 
-export const getCategoryProducts = async (req,res,next) =>{
-   try {
-    const {category} = req.query
-
-    const products = await Product.find()
-    .populate({
-      path:"category",
-      select:"tilte isBlocked",
-    })
-
-    const filteredProducts = products.filter((products)=>{
-      return product.category.title == category.tilte;
-    })
-    return res.status(200).json({products:filteredProducts})
-   } catch (error) {
-    
-   }
-}
-
 // Method POST || Add a new product
-export const addNewProduct = async (req, res,next) => {
-  const { name, brand, category, description, price, stock, images } = req.body;
-  if (!name || !category || !brand || !price || !stock || !description) {
-    return res.status(400).json({
-      message: "All fields are required.",
+export const addNewProduct = async (req, res, next) => {
+  try {
+    const { name, brand, category, description, price, stock, images } =
+      req.body;
+    if (!name || !category || !brand || !price || !stock || !description) {
+      return res.status(400).json({
+        message: "All fields are required.",
+      });
+    }
+
+    if (!images || !Array.isArray(images) || images.length !== 3) {
+      return res
+        .status(400)
+        .json({ message: "Exactly 3 images are required." });
+    }
+
+    const brandData = await Brand.findById(brand);
+    if (!brandData) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Brand not found" });
+    }
+
+    const categoryData = await Category.findById(category);
+    if (!categoryData) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Category not found" });
+    }
+
+    const newProduct = new Product({
+      name,
+      category,
+      brand,
+      price,
+      stock,
+      description,
+      images,
     });
+
+    const savedProduct = await newProduct.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Product added successfully",
+      product: savedProduct,
+    });
+  } catch (error) {
+    next();
   }
-
-  if (!images || !Array.isArray(images) || images.length !== 3) {
-    return res.status(400).json({ message: "Exactly 3 images are required." });
-  }
-
-  const brandData = await Brand.findById(brand);
-  if (!brandData) {
-    return res.status(400).json({ success: false, message: "Brand not found" });
-  }
-
-  const categoryData = await Category.findById(category);
-  if (!categoryData) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Category not found" });
-  }
-
-  const newProduct = new Product({
-    name,
-    category,
-    brand,
-    price,
-    stock,
-    description,
-    images,
-  });
-
-  const savedProduct = await newProduct.save();
-
-  res.status(201).json({
-    success: true,
-    message: "Product added successfully",
-    product: savedProduct,
-  });
 };
 
 // Method PATCH || List & Unlist product
-export const updateProductStatus = async (req, res,next) => {
+export const updateProductStatus = async (req, res, next) => {
   const { productId } = req.body;
 
   try {
@@ -127,12 +118,12 @@ export const updateProductStatus = async (req, res,next) => {
       updateProductData,
     });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 
 // Method PUT || Edit a product
-export const editProduct = async (req, res,next) => {
+export const editProduct = async (req, res, next) => {
   const { id, name, brand, category, description, price, stock, images } =
     req.body;
   try {
@@ -162,10 +153,13 @@ export const editProduct = async (req, res,next) => {
       .status(200)
       .json({ success: true, message: "Product updated successfully" });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 
+// --------------------------------------------------------------------------------------------------------
+
+// Method GET || GET A PRODUCT DETIALS
 export const getProductDetails = async (req, res) => {
   const { productId } = req.query;
 
@@ -193,25 +187,45 @@ export const getProductDetails = async (req, res) => {
   });
 };
 
-export const getRelatedProducts = async (req, res,next) => {
+// Method GET || GET RELATED PRODUCTS
+export const getRelatedProducts = async (req, res, next) => {
   try {
-    const {categoryId , brandId , productId} = req.query;
+    const { categoryId, brandId, productId } = req.query;
 
-    if(!categoryId || !brandId){
-      return res.status(400).json({message:"Missing categoryId or brandId"})
+    if (!categoryId || !brandId) {
+      return res.status(400).json({ message: "Missing categoryId or brandId" });
     }
 
     const relatedProducts = await Product.find({
-      category:categoryId,
-      brand:brandId,
-      isBlocked:false,
+      category: categoryId,
+      brand: brandId,
+      isBlocked: false,
       _id: { $ne: productId },
-    }).limit(3)
+    }).limit(3);
 
     res.status(200).json({ products: relatedProducts });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 
+// Method GET || GET CATEGORY BASED PRODUCTS
+export const getCategoryProducts = async (req, res, next) => {
+  try {
+    const { category } = req.query;
 
+    const products = await Product.find().populate({
+      path: "category",
+      select: "tilte isBlocked",
+    });
+
+    const filteredProducts = products.filter((product) => {
+      return product.category.title == category.tilte;
+    });
+    return res.status(200).json({ products: filteredProducts });
+  } catch (error) {
+    next();
+  }
+};
+
+// --------------------------------------------------------------------------------------------------------

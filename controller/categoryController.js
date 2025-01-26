@@ -1,5 +1,7 @@
 import Category from "../model/categoryModel.js";
 
+// --------------------------------------------------------------------------------------------------------
+
 // Method GET || Get all categories
 export const getAllCategories = async (req, res,next) => {
   try {
@@ -10,7 +12,7 @@ export const getAllCategories = async (req, res,next) => {
   }
 };
 
-// Method Post || Add new category
+// Method Post || Add New Category
 export const addNewCategory = async (req, res,next) => {
   const { title, icon } = req.body;
   try {
@@ -33,7 +35,7 @@ export const addNewCategory = async (req, res,next) => {
   }
 };
 
-// Method Patch || List & Unlist category
+// Method Patch || List & Unlist Category
 export const updateCategoryStatus = async (req, res,next) => {
   const { categoryId } = req.body;
   try {

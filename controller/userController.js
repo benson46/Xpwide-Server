@@ -6,6 +6,7 @@ import sendVerificationMail from "../utils/nodeMailer/sendVerificationMail.js";
 import {
   getData,
   getOtp,
+  getRefreshToken,
   storeData,
   storeOtp,
   storeRefreshToken,
@@ -14,24 +15,80 @@ import {
   generateAccessToken,
   generateRefreshToken,
 } from "../utils/jwt/generateToken.js";
-
+import jwt from 'jsonwebtoken'
 // Set access and refresh tokens in cookies
 const setCookies = (res, accessToken, refreshToken) => {
   res.cookie("accessToken", accessToken, {
-    httpOnly: true, 
+    httpOnly: true,
     secure: false,
-    sameSite: "strict", 
+    sameSite: "strict",
     maxAge: 15 * 60 * 1000, // Expiry time: 15 minutes
   });
   res.cookie("refreshToken", refreshToken, {
-    httpOnly: true, 
+    httpOnly: true,
     secure: false,
     sameSite: "strict",
     maxAge: 7 * 24 * 60 * 60 * 1000, // Expiry time: 7 days
   });
 };
 
-// Method Post || Sendotp
+// --------------------------------------------------------------------------------------------------------
+
+// Method Post || Login
+export const login = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validate input fields
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Email and password are required.",
+      });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        message: "Email not registered.",
+      });
+    }
+
+    const match = await comparePassword(password, user.password);
+
+    if (match) {
+      if (user.isBlocked) {
+        return res.status(401).json({ message: "User is blocked by admin" });
+      }
+      const userData = {
+        id: user._id,
+        role: "user",
+      };
+      const accessToken = generateAccessToken(userData);
+      const refreshToken = generateRefreshToken(userData);
+
+      await storeRefreshToken(user._id, refreshToken);
+
+      setCookies(res, accessToken, refreshToken);
+
+      res.status(200).json({
+        _id: user.id,
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.role,
+        isBlocked: user.isBlocked,
+        accessToken,
+      });
+    } else {
+      return res.status(401).json({
+        message: "Invalid password.",
+      });
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Method Post || Send otp
 export const sendOtp = async (req, res, next) => {
   const { formData } = req.body;
 
@@ -61,8 +118,27 @@ export const sendOtp = async (req, res, next) => {
   }
 };
 
-// Method Post || Verifyotp
-export const verifySignUpOtp = async (req, res, next) => {
+// Method Post || Forget Password otp send
+export const forgetPasswordOtp = async (req, res) => {
+  const { email } = req.body;
+
+  const user = await User.findOne({ email });
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  await OTP.findOneAndDelete({ email });
+
+  const otp = generateOTP();
+
+  await storeOtp(email, otp);
+  sendVerificationMail(email, otp);
+
+  res.status(200).json({ message: "OTP send successfully" });
+};
+
+// Method Post || Verify otp
+export const verifyOtp = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
 
@@ -71,12 +147,11 @@ export const verifySignUpOtp = async (req, res, next) => {
       return res.status(400).json({ message: "User already exists." });
     }
 
-    // Validate input
     if (!email || !otp) {
       throw new Error("Empty OTP details are not allowed");
     }
-    const currentOtp = await getOtp(email);
 
+    const currentOtp = await getOtp(email);
     if (!currentOtp) {
       return res.status(400).json({ message: "otp expired" });
     }
@@ -97,41 +172,7 @@ export const verifySignUpOtp = async (req, res, next) => {
   }
 };
 
-export const verifyResetOtp = async (req, res, next) => {
-  try {
-    const { email, otp } = req.body;
-
-    if (!email || !otp) {
-      return res.status(400).json({ message: "Email and OTP are required." });
-    }
-
-    const existingUser = await User.findOne({ email });
-    if (!existingUser) {
-      return res.status(404).json({ message: "User not found." });
-    }
-
-    const currentOtp = await getOtp(email);
-
-    if (!currentOtp) {
-      return res.status(400).json({ message: "OTP has expired." });
-    }
-
-    if (+currentOtp !== +otp) {
-      return res
-        .status(403)
-        .json({ message: "Invalid OTP. Please try again." });
-    }
-
-    res.json({
-      status: "VERIFIED",
-      message: "OTP verified successfully. Proceed to reset your password.",
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Method Post || Resendotp
+// Method Post || Resend otp
 export const resendOtp = async (req, res, next) => {
   const { email } = req.body;
   try {
@@ -155,22 +196,7 @@ export const resendOtp = async (req, res, next) => {
   }
 };
 
-export const resetPasswordOtp = async (req, res) => {
-  const { email } = req.body;
-
-  const user = await User.findOne({ email });
-  if (!user) {
-    return res.status(404).json({ message: "User not found" });
-  }
-
-  await OTP.findOneAndDelete({ email });
-
-  const otp = generateOTP();
-
-  await storeOtp(email, otp);
-  sendVerificationMail(email, otp);
-};
-
+// Method Post || Reset Password
 export const resetPassword = async (req, res, next) => {
   try {
     const { password, email } = req.body;
@@ -197,61 +223,6 @@ export const resetPassword = async (req, res, next) => {
   }
 };
 
-// Method Post || Login
-export const login = async (req, res, next) => {
-  try {
-    const { email, password } = req.body;
-
-    // Validate input fields
-    if (!email || !password) {
-      return res.status(400).json({
-        message: "Email and password are required.",
-      });
-    }
-
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({
-        message: "Email not registered.",
-      });
-    }
-
-    const match = await comparePassword(password, user.password);
-
-    if (match) {
-      if (user.isBlocked) {
-        return res.status(403).json({ message: "User is blocked by admin" });
-      }
-      const userData = {
-        id: user._id,
-        role: "user",
-      };
-      const accessToken = generateAccessToken(userData);
-      const refreshToken = generateRefreshToken(userData);
-
-      await storeRefreshToken(user._id, refreshToken);
-      
-      setCookies(res, accessToken, refreshToken);
-
-      res.status(200).json({
-        _id: user.id,
-        name: `${user.firstName} ${user.lastName}`,
-        email: user.email,
-        role: user.role,
-        isBlocked: user.isBlocked,
-        accessToken,
-      });
-
-    } else {
-      return res.status(401).json({
-        message: "Invalid password.",
-      });
-    }
-  } catch (error) {
-    next(error);
-  }
-};
-
 // Method Post || Logout
 export const logout = async (req, res, next) => {
   try {
@@ -268,22 +239,39 @@ export const logout = async (req, res, next) => {
   }
 };
 
-export const refreshUserAccessToken = async (req, res) => {
+// --------------------------------------------------------------------------------------------------------
+
+// Method Post || Refresh Access Token
+export const refreshUserAccessToken = async (req, res,next) => {
   try {
     const refreshToken = req.cookies.refreshToken;
     if (!refreshToken) {
-      return res.status(401).json({ message: "Refresh token is missing." });
+      return res.status(403).json({ message: "Refresh token is missing." });
     }
 
-    // Verify the refresh token and extract the payload
-    const decodedRefreshToken = jwt.verify(refreshToken, 'your_refresh_token_secret');
-    
-    // Generate a new access token using the refresh token
-    const newAccessToken = await refreshAccessToken(refreshToken);
+    const decode = jwt.verify(
+      refreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
 
-    return res.status(200).json({ accessToken: newAccessToken });
+    const refreshTokenFromRedis = await getRefreshToken(decode.id);
+    const cleanedRedisToken = refreshTokenFromRedis.replace(/^"|"$/g, ''); 
+
+    console.log("Are they equal?", refreshToken == cleanedRedisToken);
+
+    if (!cleanedRedisToken || refreshToken !== cleanedRedisToken) {
+      return res.status(403).json({ message: "Invalid or mismatched token." });
+    }
+    
+
+    const newAccessToken = generateAccessToken(decode);
+    res.status(200).json({
+      accessToken: newAccessToken,
+    });
+    console.log('new token',newAccessToken)
   } catch (error) {
-    console.error("Error refreshing access token:", error.message);
-    return res.status(403).json({ message: "Invalid or expired refresh token." });
+    next(error);
   }
 };
+
+// --------------------------------------------------------------------------------------------------------
