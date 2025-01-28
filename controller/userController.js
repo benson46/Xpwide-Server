@@ -1,21 +1,22 @@
 import { comparePassword, hashPassword } from "../utils/secure/password.js";
 import User from "../model/userModel.js";
-import OTP from "../model/otpModel.js";
 import { generateOTP } from "../utils/otp/generateOtp.js";
 import sendVerificationMail from "../utils/nodeMailer/sendVerificationMail.js";
 import {
   getData,
   getOtp,
-  getRefreshToken,
   storeData,
   storeOtp,
   storeRefreshToken,
+  getRefreshToken,
+  deleteRefreshToken
 } from "../config/redis.js";
 import {
   generateAccessToken,
   generateRefreshToken,
 } from "../utils/jwt/generateToken.js";
-import jwt from 'jsonwebtoken'
+import jwt from 'jsonwebtoken';
+
 // Set access and refresh tokens in cookies
 const setCookies = (res, accessToken, refreshToken) => {
   res.cookie("accessToken", accessToken, {
@@ -99,7 +100,7 @@ export const sendOtp = async (req, res, next) => {
     !formData.phoneNumber ||
     !formData.password
   ) {
-    return res.status(400).json({ message: "All field required" });
+    return res.status(400).json({ message: "All fields are required" });
   }
   const existUser = await User.findOne({ email: formData.email });
   if (existUser) {
@@ -112,7 +113,7 @@ export const sendOtp = async (req, res, next) => {
     const otp = generateOTP();
     await storeOtp(formData.email, otp);
     sendVerificationMail(formData.email, otp);
-    res.status(200).json({ message: "OTP send successfully" });
+    res.status(200).json({ message: "OTP sent successfully" });
   } catch (error) {
     next(error);
   }
@@ -127,14 +128,12 @@ export const forgetPasswordOtp = async (req, res) => {
     return res.status(404).json({ message: "User not found" });
   }
 
-  await OTP.findOneAndDelete({ email });
-
   const otp = generateOTP();
 
   await storeOtp(email, otp);
   sendVerificationMail(email, otp);
 
-  res.status(200).json({ message: "OTP send successfully" });
+  res.status(200).json({ message: "OTP sent successfully" });
 };
 
 // Method Post || Verify otp
@@ -153,10 +152,10 @@ export const verifyOtp = async (req, res, next) => {
 
     const currentOtp = await getOtp(email);
     if (!currentOtp) {
-      return res.status(400).json({ message: "otp expired" });
+      return res.status(400).json({ message: "OTP expired" });
     }
-    if (+currentOtp != +otp) {
-      return res.status(403).json({ message: "otp mismatching" });
+    if (+currentOtp !== +otp) {
+      return res.status(403).json({ message: "OTP mismatching" });
     }
 
     const userData = await getData(email);
@@ -179,8 +178,6 @@ export const resendOtp = async (req, res, next) => {
     if (!email) {
       throw new Error("Email is required.");
     }
-
-    await OTP.findOneAndDelete({ email });
 
     const otp = generateOTP();
 
@@ -229,7 +226,7 @@ export const logout = async (req, res, next) => {
     const refreshToken = req.cookies.refreshToken;
     const userId = req.body;
     if (refreshToken) {
-      await storeRefreshToken(userId, null);
+      await deleteRefreshToken(userId);
     }
     res.clearCookie("refreshToken");
     res.clearCookie("accessToken");
@@ -241,8 +238,11 @@ export const logout = async (req, res, next) => {
 
 // --------------------------------------------------------------------------------------------------------
 
+
+// --------------------------------------------------------------------------------------------------------
+
 // Method Post || Refresh Access Token
-export const refreshUserAccessToken = async (req, res,next) => {
+export const refreshUserAccessToken = async (req, res, next) => {
   try {
     const refreshToken = req.cookies.refreshToken;
     if (!refreshToken) {
@@ -255,23 +255,20 @@ export const refreshUserAccessToken = async (req, res,next) => {
     );
 
     const refreshTokenFromRedis = await getRefreshToken(decode.id);
-    const cleanedRedisToken = refreshTokenFromRedis.replace(/^"|"$/g, ''); 
+    const cleanedRedisToken = refreshTokenFromRedis.replace(/^"|"$/g, '');
 
     console.log("Are they equal?", refreshToken == cleanedRedisToken);
 
     if (!cleanedRedisToken || refreshToken !== cleanedRedisToken) {
       return res.status(403).json({ message: "Invalid or mismatched token." });
     }
-    
 
     const newAccessToken = generateAccessToken(decode);
     res.status(200).json({
       accessToken: newAccessToken,
     });
-    console.log('new token',newAccessToken)
+    console.log('new token', newAccessToken);
   } catch (error) {
     next(error);
   }
 };
-
-// --------------------------------------------------------------------------------------------------------

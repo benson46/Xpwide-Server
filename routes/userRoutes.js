@@ -20,6 +20,7 @@ import { isBlockedUser } from "../middleware/isBlockedUser.js";
 import { editProfileDetials, getProfileDetials } from "../controller/profileController.js";
 import { authenticateUser } from "../middleware/authenticateUser.js";
 import { addNewAddressDetails, deleteAddressDetails, getAddressDetails, updateAddressDetails } from "../controller/addressController.js";
+import { addToCart, getCartProducts, removeFromCart, updateCartQuantity } from "../controller/cartController.js";
 
 const userRouter = express.Router();
 
@@ -72,5 +73,16 @@ userRouter.delete(
 
 // ----------------------------------------------------
 
+userRouter.route("/cart")
+.get(authenticateUser,isBlockedUser,getCartProducts)
+.post(authenticateUser,isBlockedUser,addToCart)
+.patch(authenticateUser,isBlockedUser,updateCartQuantity)
+.delete(authenticateUser,isBlockedUser,removeFromCart)
+
+// ----------------------------------------------------
+
+
 userRouter.post("/refresh-token", refreshUserAccessToken);
 export default userRouter;
+
+

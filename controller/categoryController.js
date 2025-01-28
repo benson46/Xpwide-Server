@@ -61,7 +61,9 @@ export const updateCategoryStatus = async (req, res,next) => {
 export const updateCategory = async (req, res,next) => {
   const { categoryId, title, icon } = req.body;
   try {
+    console.log('hi')
     const category = await Category.findById(categoryId);
+    console.log(categoryId)
     if (!category) {
       return res
         .status(404)
