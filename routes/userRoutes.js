@@ -11,8 +11,8 @@ import {
 } from "../controller/userController.js";
 import {
   getAllProducts,
-  getCategoryProducts,
   getProductDetails,
+  getProducts,
   getRelatedProducts,
 } from "../controller/productController.js";
 import { getAllCategories } from "../controller/categoryController.js";
@@ -39,11 +39,10 @@ userRouter.post("/logout", logout);
 userRouter.get("/category", isBlockedUser, getAllCategories);
 
 // ----------------------------------------------------
-
-userRouter.get("/products", isBlockedUser, getAllProducts);
+userRouter.get('/all-products',isBlockedUser,getAllProducts)
 userRouter.get("/product", isBlockedUser, getProductDetails);
+userRouter.get("/products", isBlockedUser, getProducts);
 userRouter.get("/related-products", isBlockedUser, getRelatedProducts);
-userRouter.get("/products/:category", isBlockedUser, getCategoryProducts);
 
 // ----------------------------------------------------
 

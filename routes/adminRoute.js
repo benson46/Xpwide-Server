@@ -19,7 +19,7 @@ import {
   updateBrand,
   updateBrandStatus,
 } from "../controller/brandController.js";
-import { addNewProduct, editProduct, getAllProducts, updateProductStatus } from "../controller/productController.js";
+import { addNewProduct, editProduct, getAllProducts, updateFeaturedProducts, updateProductStatus } from "../controller/productController.js";
 import { authenticateAdmin } from "../middleware/authenticateAdmin.js";
 
 const adminRouter = express.Router();
@@ -61,8 +61,10 @@ adminRouter
   .get(authenticateAdmin,getAllProducts)
   .post(authenticateAdmin,addNewProduct)
   .patch(authenticateAdmin,updateProductStatus);
-  
+
 adminRouter.put("/products/:products",authenticateAdmin,editProduct)
+adminRouter.patch("/products/feature", authenticateAdmin, updateFeaturedProducts);
+
 
 // ----------------------------------------------------
 adminRouter.post("/refresh-access-token", refreshAdminAccessToken);

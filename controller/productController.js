@@ -8,7 +8,7 @@ import { storeRefreshToken } from "../config/redis.js";
 // Method GET || Get all products
 export const getAllProducts = async (req, res, next) => {
   const { isUser } = req.query;
-
+  console.log(isUser)
   try {
     const products = await Product.find()
       .populate({
@@ -210,22 +210,79 @@ export const getRelatedProducts = async (req, res, next) => {
 };
 
 // Method GET || GET CATEGORY BASED PRODUCTS
-export const getCategoryProducts = async (req, res, next) => {
+export const getProducts = async (req, res, next) => {
   try {
-    const { category } = req.query;
+    const { category } = req.query; // Get category from query parameters
+    console.log("Category Query:", category);
 
-    const products = await Product.find().populate({
+    // Fetch all products and populate the category field
+    const products = await Product.find({}).populate({
       path: "category",
-      select: "tilte isBlocked",
+      select: "title isBlocked",
     });
 
-    const filteredProducts = products.filter((product) => {
-      return product.category.title == category.tilte;
-    });
+    console.log("Fetched Products:", products);
+
+    // Filter products based on category and block status
+    const filteredProducts =
+      category === "all" || !category
+        ? products.filter((product) => !product.category.isBlocked)
+        : products.filter(
+            (product) =>
+              product.category &&
+              product.category.title === category &&
+              !product.category.isBlocked
+          );
+
+    // If no products found, return a message
+    if (filteredProducts.length === 0) {
+      return res
+        .status(200)
+        .json({ products: [], message: "No products available in this category" });
+    }
+
     return res.status(200).json({ products: filteredProducts });
   } catch (error) {
-    next();
+    next(error); // Pass the error to the global error handler
   }
 };
+
+
+export const getFeaturedProducts = async(req,res,next) =>{
+
+}
+
+// Method PATCH || Update featured product status
+export const updateFeaturedProducts = async (req, res, next) => {
+  const { productId } = req.body;
+
+  try {
+    // Find the product by ID
+    const product = await Product.findById(productId);
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    // Toggle the isFeatured status (If already featured, remove the feature, else add it)
+    product.isFeatured = !product.isFeatured;
+    await product.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Product feature status updated to ${
+        product.isFeatured ? "featured" : "not featured"
+      }`,
+      product: product,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
 
 // --------------------------------------------------------------------------------------------------------
