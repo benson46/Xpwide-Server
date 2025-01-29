@@ -3,12 +3,11 @@ import Category from "../model/categoryModel.js";
 import Brand from "../model/brandModel.js";
 import { storeRefreshToken } from "../config/redis.js";
 
-// --------------------------------------------------------------------------------------------------------
+//------------------------------------------ ADMIN CONTROLLES --------------------------------------------------------------
 
-// Method GET || Get all products
+// METHOD GET || Show all products
 export const getAllProducts = async (req, res, next) => {
   const { isUser } = req.query;
-  console.log(isUser)
   try {
     const products = await Product.find()
       .populate({
@@ -33,7 +32,7 @@ export const getAllProducts = async (req, res, next) => {
   }
 };
 
-// Method POST || Add a new product
+// METHOD POST || Add a new product
 export const addNewProduct = async (req, res, next) => {
   try {
     const { name, brand, category, description, price, stock, images } =
@@ -86,7 +85,7 @@ export const addNewProduct = async (req, res, next) => {
   }
 };
 
-// Method PATCH || List & Unlist product
+// METHOD PATCH || Soft delete products
 export const updateProductStatus = async (req, res, next) => {
   const { productId } = req.body;
 
@@ -122,7 +121,7 @@ export const updateProductStatus = async (req, res, next) => {
   }
 };
 
-// Method PUT || Edit a product
+// METHOD PUT || Edit a product
 export const editProduct = async (req, res, next) => {
   const { id, name, brand, category, description, price, stock, images } =
     req.body;
@@ -157,102 +156,7 @@ export const editProduct = async (req, res, next) => {
   }
 };
 
-// --------------------------------------------------------------------------------------------------------
-
-// Method GET || GET A PRODUCT DETIALS
-export const getProductDetails = async (req, res) => {
-  const { productId } = req.query;
-
-  const product = await Product.findById(productId)
-    .populate({
-      path: "brand",
-      select: "title",
-    })
-    .populate({
-      path: "category",
-      select: "title",
-    });
-
-  if (!product) {
-    res.status(400).json({
-      message: "Prooduct Not Found",
-      success: false,
-    });
-  }
-
-  res.status(200).json({
-    product,
-    success: true,
-    message: "Product fetched Successfully",
-  });
-};
-
-// Method GET || GET RELATED PRODUCTS
-export const getRelatedProducts = async (req, res, next) => {
-  try {
-    const { categoryId, brandId, productId } = req.query;
-
-    if (!categoryId || !brandId) {
-      return res.status(400).json({ message: "Missing categoryId or brandId" });
-    }
-
-    const relatedProducts = await Product.find({
-      category: categoryId,
-      brand: brandId,
-      isBlocked: false,
-      _id: { $ne: productId },
-    }).limit(3);
-
-    res.status(200).json({ products: relatedProducts });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Method GET || GET CATEGORY BASED PRODUCTS
-export const getProducts = async (req, res, next) => {
-  try {
-    const { category } = req.query; // Get category from query parameters
-    console.log("Category Query:", category);
-
-    // Fetch all products and populate the category field
-    const products = await Product.find({}).populate({
-      path: "category",
-      select: "title isBlocked",
-    });
-
-    console.log("Fetched Products:", products);
-
-    // Filter products based on category and block status
-    const filteredProducts =
-      category === "all" || !category
-        ? products.filter((product) => !product.category.isBlocked)
-        : products.filter(
-            (product) =>
-              product.category &&
-              product.category.title === category &&
-              !product.category.isBlocked
-          );
-
-    // If no products found, return a message
-    if (filteredProducts.length === 0) {
-      return res
-        .status(200)
-        .json({ products: [], message: "No products available in this category" });
-    }
-
-    return res.status(200).json({ products: filteredProducts });
-  } catch (error) {
-    next(error); // Pass the error to the global error handler
-  }
-};
-
-
-export const getFeaturedProducts = async(req,res,next) =>{
-
-}
-
-// Method PATCH || Update featured product status
+// METHOD PATCH || Change a product status featured or not featured
 export const updateFeaturedProducts = async (req, res, next) => {
   const { productId } = req.body;
 
@@ -284,5 +188,110 @@ export const updateFeaturedProducts = async (req, res, next) => {
 };
 
 
+//-----------------------------------------  USER CONTROLLES ---------------------------------------------------------------
+
+// METHOD GET || GET A PRODUCT DETIALS
+export const getProductDetails = async (req, res) => {
+  const { productId } = req.query;
+
+  const product = await Product.findById(productId)
+    .populate({
+      path: "brand",
+      select: "title",
+    })
+    .populate({
+      path: "category",
+      select: "title",
+    });
+
+  if (!product) {
+    res.status(400).json({
+      message: "Prooduct Not Found",
+      success: false,
+    });
+  }
+
+  res.status(200).json({
+    product,
+    success: true,
+    message: "Product fetched Successfully",
+  });
+};
+
+// Method GET || GET CATEGORY BASED PRODUCTS
+export const getProducts = async (req, res, next) => {
+  try {
+    const { category } = req.query;
+
+    const products = await Product.find({}).populate({
+      path: "category",
+      select: "title isBlocked",
+    });
+
+
+    const filteredProducts =
+      category === "all" || !category
+        ? products.filter((product) => !product.category.isBlocked)
+        : products.filter(
+            (product) =>
+              product.category &&
+              product.category.title === category &&
+              !product.category.isBlocked
+          );
+
+    if (filteredProducts.length === 0) {
+      return res.status(200).json({
+        products: [],
+        message: "No products available in this category",
+      });
+    }
+
+    return res.status(200).json({ products: filteredProducts });
+  } catch (error) {
+    next(error);   }
+};
+
+// METHOD GET || GET RELATED PRODUCTS
+export const getRelatedProducts = async (req, res, next) => {
+  try {
+    const { categoryId, brandId, productId } = req.query;
+
+    if (!categoryId || !brandId) {
+      return res.status(400).json({ message: "Missing categoryId or brandId" });
+    }
+
+    const relatedProducts = await Product.find({
+      category: categoryId,
+      brand: brandId,
+      isBlocked: false,
+      _id: { $ne: productId },
+    }).limit(3);
+
+    res.status(200).json({ products: relatedProducts });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getFeaturedProducts = async (req, res, next) => {
+    try {
+      const products = await Product.find()
+        .populate({
+          path: "category",
+          select: "title isBlocked",
+        })
+        .populate({
+          path: "brand",
+          select: "title",
+        });
+
+        const filteredProducts = products.filter((product) => {
+          return !product.category.isBlocked && product.isFeatured;
+        });
+        return res.status(200).json({ products: filteredProducts });
+  } catch (error) {
+    next(error)
+  }
+}
 
 // --------------------------------------------------------------------------------------------------------

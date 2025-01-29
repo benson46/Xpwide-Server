@@ -6,7 +6,7 @@ import {
 } from "../utils/jwt/generateToken.js";
 import { storeRefreshToken } from "../config/redis.js";
 
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID); // Google client id
 
 // Set cookies for tokens
 const setCookies = (res, accessToken, refreshToken) => {
@@ -24,10 +24,8 @@ const setCookies = (res, accessToken, refreshToken) => {
   });
 };
 
-// --------------------------------------------------------------------------------------------------------
-
-// Method Post || Admin Login
-export const login = async (req, res,next) => {
+// METHOD POST || Login with google for user
+export const login = async (req, res, next) => {
   try {
     const { token } = req.body;
     const ticket = await client.verifyIdToken({
@@ -35,7 +33,13 @@ export const login = async (req, res,next) => {
       audience: process.env.GOOGLE_CLIENT_ID,
     });
 
-    const { email, given_name: firstName, family_name: lastName, picture, sub: userId } = ticket.getPayload();
+    const {
+      email,
+      given_name: firstName,
+      family_name: lastName,
+      picture,
+      sub: userId,
+    } = ticket.getPayload();
 
     let user = await User.findOne({ email });
 
@@ -45,7 +49,7 @@ export const login = async (req, res,next) => {
         lastName,
         email,
         image: picture,
-        password:'google-auth'
+        password: "google-auth",
       });
     }
 
@@ -72,14 +76,15 @@ export const login = async (req, res,next) => {
       success: true,
       message: "Login successful",
       accessToken,
-        _id: user._id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        image: user.image,
-        isBlocked: user.isBlocked
+      _id: user._id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      image: user.image,
+      isBlocked: user.isBlocked,
+      googleUser:true
     });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };

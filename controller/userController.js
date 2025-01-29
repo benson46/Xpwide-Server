@@ -9,13 +9,14 @@ import {
   storeOtp,
   storeRefreshToken,
   getRefreshToken,
-  deleteRefreshToken
+  deleteRefreshToken,
 } from "../config/redis.js";
 import {
   generateAccessToken,
   generateRefreshToken,
 } from "../utils/jwt/generateToken.js";
-import jwt from 'jsonwebtoken';
+import jwt from "jsonwebtoken";
+import { json } from "express";
 
 // Set access and refresh tokens in cookies
 const setCookies = (res, accessToken, refreshToken) => {
@@ -33,13 +34,10 @@ const setCookies = (res, accessToken, refreshToken) => {
   });
 };
 
-// --------------------------------------------------------------------------------------------------------
-
-// Method Post || Login
+// METHOD POST || Login as user
 export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-
     // Validate input fields
     if (!email || !password) {
       return res.status(400).json({
@@ -55,7 +53,6 @@ export const login = async (req, res, next) => {
     }
 
     const match = await comparePassword(password, user.password);
-
     if (match) {
       if (user.isBlocked) {
         return res.status(401).json({ message: "User is blocked by admin" });
@@ -89,7 +86,7 @@ export const login = async (req, res, next) => {
   }
 };
 
-// Method Post || Send otp
+// METHOD POST || Send OTP
 export const sendOtp = async (req, res, next) => {
   const { formData } = req.body;
 
@@ -119,25 +116,50 @@ export const sendOtp = async (req, res, next) => {
   }
 };
 
-// Method Post || Forget Password otp send
-export const forgetPasswordOtp = async (req, res) => {
+// METHOD POST || Forget Password OTP send
+export const forgetPasswordOtp = async (req, res, next) => {
   const { email } = req.body;
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
-  const user = await User.findOne({ email });
-  if (!user) {
-    return res.status(404).json({ message: "User not found" });
+    const otp = generateOTP();
+
+    await storeOtp(email, otp);
+    sendVerificationMail(email, otp);
+
+    res.status(200).json({ message: "OTP sent successfully" });
+  } catch (error) {
+    next(error);
   }
-
-  const otp = generateOTP();
-
-  await storeOtp(email, otp);
-  sendVerificationMail(email, otp);
-
-  res.status(200).json({ message: "OTP sent successfully" });
 };
 
-// Method Post || Verify otp
-export const verifyOtp = async (req, res, next) => {
+// METHOD POST || Resend OTP
+export const resendOTP = async (req, res, next) => {
+  const { email } = req.body;
+  try {
+    if (!email) {
+      throw new Error("Email is required.");
+    }
+
+    const otp = generateOTP();
+
+    await storeOtp(email, otp);
+    sendVerificationMail(email, otp);
+
+    res.status(200).json({
+      status: "SUCCESS",
+      message: "OTP has been resent successfully. Please check your inbox.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// METHOD POST || Verify entered OTP
+export const verifyOTP = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
 
@@ -171,29 +193,7 @@ export const verifyOtp = async (req, res, next) => {
   }
 };
 
-// Method Post || Resend otp
-export const resendOtp = async (req, res, next) => {
-  const { email } = req.body;
-  try {
-    if (!email) {
-      throw new Error("Email is required.");
-    }
-
-    const otp = generateOTP();
-
-    await storeOtp(email, otp);
-    sendVerificationMail(email, otp);
-
-    res.status(200).json({
-      status: "SUCCESS",
-      message: "OTP has been resent successfully. Please check your inbox.",
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Method Post || Reset Password
+// METHOD POST || Reset Password
 export const resetPassword = async (req, res, next) => {
   try {
     const { password, email } = req.body;
@@ -220,11 +220,42 @@ export const resetPassword = async (req, res, next) => {
   }
 };
 
-// Method Post || Logout
+export const changePassword = async (req, res, next) => {
+  try {
+    const { oldPassword, newPassword, email } = req.body;
+
+    if (!email || !oldPassword || !newPassword) {
+      return res.status(400).json({
+        message: "Email and password are required.",
+      });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const match = await comparePassword(oldPassword, user.password);
+    if (!match) {
+      return res.status(401).json({ message: "Old password not matching" });
+    }
+
+    const hashedPassword = await hashPassword(newPassword);
+
+    user.password = hashedPassword;
+    await user.save();
+
+    res.status(200).json({success: true, message: "Password updated successfully." });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// METHOD POST || Logout
 export const logout = async (req, res, next) => {
   try {
     const refreshToken = req.cookies.refreshToken;
-    const userId = req.body;
+    const userId = JSON.stringify(req.body.userId)
     if (refreshToken) {
       await deleteRefreshToken(userId);
     }
@@ -236,11 +267,6 @@ export const logout = async (req, res, next) => {
   }
 };
 
-// --------------------------------------------------------------------------------------------------------
-
-
-// --------------------------------------------------------------------------------------------------------
-
 // Method Post || Refresh Access Token
 export const refreshUserAccessToken = async (req, res, next) => {
   try {
@@ -249,15 +275,11 @@ export const refreshUserAccessToken = async (req, res, next) => {
       return res.status(403).json({ message: "Refresh token is missing." });
     }
 
-    const decode = jwt.verify(
-      refreshToken,
-      process.env.REFRESH_TOKEN_SECRET
-    );
+    const decode = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
 
     const refreshTokenFromRedis = await getRefreshToken(decode.id);
-    const cleanedRedisToken = refreshTokenFromRedis.replace(/^"|"$/g, '');
+    const cleanedRedisToken = refreshTokenFromRedis.replace(/^"|"$/g, "");
 
-    console.log("Are they equal?", refreshToken == cleanedRedisToken);
 
     if (!cleanedRedisToken || refreshToken !== cleanedRedisToken) {
       return res.status(403).json({ message: "Invalid or mismatched token." });
@@ -267,7 +289,6 @@ export const refreshUserAccessToken = async (req, res, next) => {
     res.status(200).json({
       accessToken: newAccessToken,
     });
-    console.log('new token', newAccessToken);
   } catch (error) {
     next(error);
   }

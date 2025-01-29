@@ -31,10 +31,9 @@ const setCookies = (res, adminAccessToken, adminRefreshToken) => {
 
 // --------------------------------------------------------------------------------------------------------
 
-// Method Post || Admin Login
+// METHOD POST || Login as admin
 export const adminLogin = async (req, res, next) => {
   const { email, password } = req.body;
-  console.log(email);
 
   try {
     if (!email || !password) {
@@ -77,12 +76,11 @@ export const adminLogin = async (req, res, next) => {
   }
 };
 
-// Method Post || Admin Logout
+// METHOD POST || Logout admin
 export const adminLogout = async (req, res, next) => {
   try {
     const adminRefreshToken = req.cookies.adminRefreshToken;
     const adminId = req.body;
-    console.log('id',adminId)
 
     if (adminRefreshToken) {
       await storeRefreshToken(adminId, null);
@@ -95,7 +93,7 @@ export const adminLogout = async (req, res, next) => {
   }
 };
 
-// Method Get || Get users list
+// METHOD GET || Get users list
 export const getUsersList = async (req, res, next) => {
   const { page = 1, limit = 10 } = req.query;
   const skip = (page - 1) * limit;
@@ -125,7 +123,7 @@ export const getUsersList = async (req, res, next) => {
   }
 };
 
-// Method Patch || Block User
+// METHOD PATHC || Block User
 export const updateUserStatus = async (req, res, next) => {
   const { userId } = req.body;
 
@@ -158,7 +156,7 @@ export const updateUserStatus = async (req, res, next) => {
   }
 };
 
-// Method Post || Refresh Access Token
+// METHDOD POST  || Refresh Access Token for admin
 export const refreshAdminAccessToken = async (req, res, next) => {
   try {
     const { adminRefreshToken } = req.cookies;
@@ -190,37 +188,39 @@ export const refreshAdminAccessToken = async (req, res, next) => {
   }
 };
 
-// export const adminSignup = async (req, res) => {
-// 	const { email, password } = req.body;
-
-// 	try {
-// 		if (!email || !password) {
-// 			return res
-// 				.status(400)
-// 				.json({ message: "Email and password are required." });
-// 		}
-
-// 		const existingAdmin = await Admin.findOne({ email });
-// 		if (existingAdmin) {
-// 			return res.status(409).json({ message: "Admin already exists." });
-// 		}
-
-// 		const hashedPassword = await hashPassword(password);
-// 		const admin = await Admin.create({ email, password: hashedPassword });
-
-//     const accessToken = generateAccessToken(admin._id,admin.role)
-// 		const  refreshToken = generateRefreshToken(admin._id,admin.role);
-// 		await storeRefreshToken(admin._id, refreshToken);
-// 		setCookies(res, accessToken, refreshToken);
-
-// 		res.status(201).json({
-// 			admin: { _id: admin._id, email: admin.email, role: admin.role },
-// 		});
-// 	} catch (error) {
-// 		res.status(500).json({ message: error.message });
-// 	}
-// };
-
 // --------------------------------------------------------------------------------------------------------
+
+// METHOD POST || Signup as admin(devlopment mode only use)
+/* export const adminSignup = async (req, res) => {
+	const { email, password } = req.body;
+
+	try {
+		if (!email || !password) {
+			return res
+				.status(400)
+				.json({ message: "Email and password are required." });
+		}
+
+		const existingAdmin = await Admin.findOne({ email });
+		if (existingAdmin) {
+			return res.status(409).json({ message: "Admin already exists." });
+		}
+
+		const hashedPassword = await hashPassword(password);
+		const admin = await Admin.create({ email, password: hashedPassword });
+
+    const accessToken = generateAccessToken(admin._id,admin.role)
+		const  refreshToken = generateRefreshToken(admin._id,admin.role);
+		await storeRefreshToken(admin._id, refreshToken);
+		setCookies(res, accessToken, refreshToken);
+
+		res.status(201).json({
+			admin: { _id: admin._id, email: admin.email, role: admin.role },
+		});
+	} catch (error) {
+		res.status(500).json({ message: error.message });
+	}
+}; */
+
 
 

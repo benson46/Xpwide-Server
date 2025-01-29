@@ -1,8 +1,6 @@
 import Brand from "../model/brandModel.js";
 
-// --------------------------------------------------------------------------------------------------------
-
-// Method GET || Get All Brands
+// METHOD GET || Get all brands
 export const getAllBrands = async (req, res, next) => {
   try {
     const brands = await Brand.find();
@@ -12,7 +10,7 @@ export const getAllBrands = async (req, res, next) => {
   }
 };
 
-// Method Post || Add New Brand
+// METHOD POST || Add new brand
 export const addNewBrands = async (req, res, next) => {
   const { title, description } = req.body;
   try {
@@ -33,7 +31,7 @@ export const addNewBrands = async (req, res, next) => {
   }
 };
 
-// Method Patch || List & Unlist Brand
+// METHOD PATCH || Soft delete brand
 export const updateBrandStatus = async (req, res, next) => {
   const { brandId } = req.body;
 
@@ -57,7 +55,7 @@ export const updateBrandStatus = async (req, res, next) => {
   }
 };
 
-// Method Put || Update Brand
+// METHOD PUT || Edit brand
 export const updateBrand = async (req, res, next) => {
   const { _id: brandId, title, description } = req.body;
   try {

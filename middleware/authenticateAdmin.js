@@ -18,8 +18,6 @@ export const authenticateAdmin = async (req, res, next) => {
     req.user = decode;
     next();
   } catch (error) {
-    console.log(error.message);
-    console.log("ivda ?");
     return res.status(401).json({ message: "Invalid or Expired Token" });
   }
 };

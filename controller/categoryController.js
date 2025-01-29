@@ -1,18 +1,8 @@
 import Category from "../model/categoryModel.js";
 
-// --------------------------------------------------------------------------------------------------------
+//------------------------------------------ ADMIN CONTROLLES --------------------------------------------------------------
 
-// Method GET || Get all categories
-export const getAllCategories = async (req, res,next) => {
-  try {
-    const categories = await Category.find();
-    res.status(200).json({ success: true, categories });
-  } catch (error) {
-    next(error)
-  }
-};
-
-// Method Post || Add New Category
+// METHOD POST || Add New Category
 export const addNewCategory = async (req, res,next) => {
   const { title, icon } = req.body;
   try {
@@ -35,7 +25,7 @@ export const addNewCategory = async (req, res,next) => {
   }
 };
 
-// Method Patch || List & Unlist Category
+// METHOD PATCH || Soft delete category
 export const updateCategoryStatus = async (req, res,next) => {
   const { categoryId } = req.body;
   try {
@@ -57,13 +47,11 @@ export const updateCategoryStatus = async (req, res,next) => {
   }
 };
 
-// Method Put || Update category
+// METHOD PUT || Edit category
 export const updateCategory = async (req, res,next) => {
   const { categoryId, title, icon } = req.body;
   try {
-    console.log('hi')
     const category = await Category.findById(categoryId);
-    console.log(categoryId)
     if (!category) {
       return res
         .status(404)
@@ -77,6 +65,18 @@ export const updateCategory = async (req, res,next) => {
     res
       .status(200)
       .json({ success: true, message: "Category updated successfully" });
+  } catch (error) {
+    next(error)
+  }
+};
+
+//------------------------------------------ COMMON CONTROLLES --------------------------------------------------------------
+
+// METHOD GET || Show all categories
+export const getAllCategories = async (req, res,next) => {
+  try {
+    const categories = await Category.find();
+    res.status(200).json({ success: true, categories });
   } catch (error) {
     next(error)
   }

@@ -1,36 +1,28 @@
-// Backend Controllers: Address Management
-
 import Address from "../model/addressModel.js";
-import mongoose from "mongoose";
 
-// Fetch all addresses for the logged-in user
-export const getAddressDetails = async (req, res) => {
+//  METHOD GET || Show all addresses for the logged-in user
+export const getAddressDetails = async (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({
       success: false,
       message: "User not authenticated",
     });
   }
-  console.log('user',req.user)
 
   try {
     const userId = req.user.id;
-    const addresses = await Address.find({userId });
-    console.log(addresses)
+    const addresses = await Address.find({ userId });
     res.status(200).json({
       success: true,
       addresses,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch addresses.",
-    });
+    next(error);
   }
 };
 
-// Add a new address for the logged-in user
-export const addNewAddressDetails = async (req, res) => {
+//  METHOD POST || Add a new address for the logged-in user
+export const addNewAddressDetails = async (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({
       success: false,
@@ -38,12 +30,22 @@ export const addNewAddressDetails = async (req, res) => {
     });
   }
 
+
   try {
     const userId = req.user.id;
-    const { addressType, name, phoneNumber, address, locality, city, state, pincode } = req.body;
+    const {
+      addressType,
+      name,
+      phoneNumber,
+      address,
+      locality,
+      city,
+      state,
+      pincode,
+    } = req.body;
 
     const newAddress = new Address({
-    userId,
+      userId,
       addressType,
       name,
       phoneNumber,
@@ -53,22 +55,19 @@ export const addNewAddressDetails = async (req, res) => {
       state,
       pincode,
     });
-
+    
     const savedAddress = await newAddress.save();
     res.status(201).json({
       success: true,
       savedAddress,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to add new address.",
-    });
+    next(error)
   }
 };
 
-// Update an existing address for the logged-in user
-export const updateAddressDetails = async (req, res) => {
+//  METHOD PUT || Update an existing address for the logged-in user
+export const updateAddressDetails = async (req, res,next) => {
   if (!req.user) {
     return res.status(401).json({
       success: false,
@@ -86,8 +85,6 @@ export const updateAddressDetails = async (req, res) => {
       { new: true }
     );
 
-    
-
     if (!updatedAddress) {
       return res.status(404).json({
         success: false,
@@ -100,15 +97,12 @@ export const updateAddressDetails = async (req, res) => {
       updatedAddress,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to update address.",
-    });
+    next(error)
   }
 };
 
-// Delete an address for the logged-in user
-export const deleteAddressDetails = async (req, res) => {
+//  METHOD DELETE || Delete an address for the logged-in user
+export const deleteAddressDetails = async (req, res,next) => {
   if (!req.user) {
     return res.status(401).json({
       success: false,
@@ -137,9 +131,6 @@ export const deleteAddressDetails = async (req, res) => {
       message: "Address deleted successfully.",
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to delete address.",
-    });
+    next(error)
   }
 };

@@ -13,30 +13,26 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Redis
-
+// redis
+client.on("connect", () => {
+  console.log("Connected to redis");
+});
+client.on("error", (error) => {
+  console.log("redis connection error", error);
+});
 
 // Middlewares
 app.use(
   cors({
-    origin: ["http://localhost:5173"], // Frontend domain(s)
-    credentials: true, // Allow credentials (cookies, authorization headers, etc.)
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"], // Allowed HTTP methods
-    allowedHeaders: ["Content-Type", "Authorization","User-Email"], // Include custom headers if used
+    origin: ["http://localhost:5173"], 
+    credentials: true, 
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"], 
+    allowedHeaders: ["Content-Type", "Authorization","User-Email"], 
   })
 );
-
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({limit:"50mb" ,extended: true }));
 app.use(cookieParser());
-
-client.on("connect", () => {
-  console.log("Connected to redis");
-});
-
-client.on("error", (error) => {
-  console.log("redis connection error", error);
-});
 
 
 // Routes
@@ -44,12 +40,9 @@ app.use("/api/admin", adminRoute);
 app.use("/api/user", userRouter);
 app.use("/api/google",googleRoute)
 
+// Global error handler
 app.use(errorHandler);
 
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: "Internal Server Error" });
-});
 
 // Connect to database and start the server
 (async () => {

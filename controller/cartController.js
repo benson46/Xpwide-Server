@@ -1,41 +1,41 @@
 import Cart from "../model/cartModel.js";
 import Product from "../model/proudctModal.js";
 
-export const getCartProducts = async (req, res) => {
-    const userId = req.user.id; // Retrieved from verified token
-  
-    try {
-      const cart = await Cart.findOne({ userId }).populate("items.productId");
-  
-      if (!cart) {
-        return res
-          .status(200)
-          .json({ items: [], totalAmount: 0, message: "Cart is empty" });
-      }
-  
-      // Filter out items with out-of-stock products
-      const validItems = cart.items.filter((item) => item.productId.stock > 0);
-  
-      // Calculate the total amount only for in-stock products
-      const totalAmount = validItems.reduce((sum, item) => {
-        return sum + item.productId.price * item.quantity;
-      }, 0);
-  
-      res.status(200).json({
-        items: cart.items,
-        subtotal: totalAmount,
-        message: validItems.length > 0 ? "Cart fetched successfully" : "No in-stock items in the cart",
-      });
-    } catch (error) {
-      console.error("Error fetching cart:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  };
-  
+// METHOD GET || Show all products in cart for logged-in user
+export const getCartProducts = async (req, res, next) => {
+  const userId = req.user.id;
 
-export const addToCart = async (req, res) => {
+  try {
+    const cart = await Cart.findOne({ userId }).populate("items.productId");
+
+    if (!cart) {
+      return res
+        .status(200)
+        .json({ items: [], totalAmount: 0, message: "Cart is empty" });
+    }
+
+    const validItems = cart.items.filter((item) => item.productId.stock > 0);
+
+    const totalAmount = validItems.reduce((sum, item) => {
+      return sum + item.productId.price * item.quantity;
+    }, 0);
+
+    res.status(200).json({
+      items: cart.items,
+      subtotal: totalAmount,
+      message:
+        validItems.length > 0
+          ? "Cart fetched successfully"
+          : "No in-stock items in the cart",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+// METHOD POST || Add new products to cart for logged-in user
+export const addToCart = async (req, res, next) => {
   const { productId, quantity } = req.body;
-  const userId = req.user.id; // Retrieved from verified token
+  const userId = req.user.id;
 
   try {
     const product = await Product.findById(productId);
@@ -48,31 +48,26 @@ export const addToCart = async (req, res) => {
       return res.status(400).json({ message: "Insufficient stock available" });
     }
 
-    // Find the cart and the item with the productId
     const cart = await Cart.findOne({ userId, "items.productId": productId });
 
     if (cart) {
-      // Find the current quantity of the product in the cart
       const currentItem = cart.items.find(
         (item) => item.productId.toString() === productId.toString()
       );
       const currentQuantity = currentItem ? currentItem.quantity : 0;
 
-      // Check if adding the new quantity would exceed the maximum limit of 5
       if (currentQuantity + quantity > 5) {
         return res
           .status(400)
           .json({ message: "Cannot add more than 5 products to the cart" });
       }
 
-      // Update the quantity if the limit is not exceeded
       await Cart.findOneAndUpdate(
         { userId, "items.productId": productId },
         { $inc: { "items.$.quantity": quantity } },
         { new: true }
       );
     } else {
-      // If the cart or item doesn't exist, create a new entry
       if (quantity > 5) {
         return res
           .status(400)
@@ -88,14 +83,14 @@ export const addToCart = async (req, res) => {
 
     res.status(200).json({ message: "Product added to cart successfully" });
   } catch (error) {
-    console.error("Error adding product to cart:", error);
-    res.status(500).json({ message: "Internal server error" });
+    next(error);
   }
 };
 
-// Update product quantity in the cart
-export const updateCartQuantity = async (req, res) => {
+// METHOD PATCH || Update product quantity in the cart
+export const updateCartQuantity = async (req, res,next) => {
   const { productId, quantity } = req.body;
+  console.log(quantity)
   const userId = req.user.id;
 
   try {
@@ -117,10 +112,8 @@ export const updateCartQuantity = async (req, res) => {
       return res.status(404).json({ message: "Product not found in cart" });
     }
 
-    // Validate and update the quantity
     item.quantity = quantity;
 
-    // Recalculate the totalAmount (subtotal)
     cart.totalAmount = cart.items.reduce(
       (sum, item) => sum + item.productId.price * item.quantity,
       0
@@ -128,23 +121,20 @@ export const updateCartQuantity = async (req, res) => {
 
     await cart.save();
 
-    res
-      .status(200)
-      .json({
-        message: "Cart updated successfully",
-        cart,
-        subtotal: cart.totalAmount,
-      });
+    res.status(200).json({
+      message: "Cart updated successfully",
+      cart,
+      subtotal: cart.totalAmount,
+    });
   } catch (error) {
-    console.error("Error updating cart quantity:", error);
-    res.status(500).json({ message: "Internal server error" });
+    next(error)
   }
 };
 
-// Remove product from the cart
-export const removeFromCart = async (req, res) => {
+// METHOD DELETE || Remove a product from the cart
+export const removeFromCart = async (req, res, next) => {
   const { productId } = req.body;
-  const userId = req.user.id; // Retrieved from verified token
+  const userId = req.user.id;
 
   try {
     const cart = await Cart.findOne({ userId });
@@ -167,37 +157,13 @@ export const removeFromCart = async (req, res) => {
 
     res.status(200).json({ message: "Product removed from cart successfully" });
   } catch (error) {
-    console.error("Error removing product from cart:", error);
-    res.status(500).json({ message: "Internal server error" });
+    next(error);
   }
 };
 
-// Fetch cart subtotal
-export const getCartSubtotal = async (req, res) => {
-  const userId = req.user.id; // Retrieved from verified token
-
-  try {
-    const cart = await Cart.findOne({ userId }).populate("items.productId");
-
-    if (!cart) {
-      return res.status(200).json({ subtotal: 0, message: "Cart is empty" });
-    }
-
-    const subtotal = cart.items.reduce(
-      (sum, item) => sum + item.productId.price * item.quantity,
-      0
-    );
-
-    res.status(200).json({ subtotal });
-  } catch (error) {
-    console.error("Error fetching cart subtotal:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
-
-// "Buy All" functionality
+// buy all ( not added yet)
 export const buyAll = async (req, res) => {
-  const userId = req.user.id; // Retrieved from verified token
+  const userId = req.user.id; 
 
   try {
     const cart = await Cart.findOne({ userId }).populate("items.productId");
