@@ -29,17 +29,22 @@ const orderSchema = new mongoose.Schema(
           required: true,
           min: 1,
         },
+        status: {
+          type: String,
+          enum: ["Pending", "Shipped", "Delivered", "Cancelled"],
+          default: "Pending",
+        },
+        deliveryDate:{
+          type:Date,
+          default:null,
+        }
       },
     ],
     totalAmount: {
       type: Number,
       required: true,
     },
-    status: {
-      type: String,
-      enum: ["Pending", "Processing", "Shipped", "Delivered", "Cancelled"],
-      default: "Pending",
-    },
+    
     createdAt: {
       type: Date,
       default: Date.now,

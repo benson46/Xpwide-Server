@@ -36,8 +36,8 @@ import {
   removeFromCart,
   updateCartQuantity,
 } from "../controller/cartController.js";
-import { getCartItems } from "../controller/checkoutController.js";
-import { orderSuccess } from "../controller/orderController.js";
+import { getCartItems, orderSuccess } from "../controller/checkoutController.js";
+import { cancelOrderItem, getAllOrders } from "../controller/orderController.js";
 
 const userRouter = express.Router();
 
@@ -79,7 +79,7 @@ userRouter
 userRouter
   .route("address/:id")
   .put(authenticateUser, isBlockedUser, updateAddressDetails)
-  .delete(authenticateUser, isBlockedUser, updateAddressDetails);
+  .delete(authenticateUser, isBlockedUser, deleteAddressDetails);
 
 // ----------------------------------------------------
 
@@ -95,6 +95,9 @@ userRouter
 userRouter.get('/checkout',authenticateUser,isBlockedUser,getCartItems)
 
 userRouter.post('/orders',authenticateUser,isBlockedUser,orderSuccess)
+
+userRouter.get('/orders',authenticateUser,isBlockedUser,getAllOrders)
+userRouter.patch('/orders/:orderId/cancel/:productId',authenticateUser,cancelOrderItem)
 // ----------------------------------------------------
 
 userRouter.post("/refresh-token", refreshUserAccessToken);

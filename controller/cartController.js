@@ -1,5 +1,5 @@
 import Cart from "../model/cartModel.js";
-import Product from "../model/proudctModal.js";
+import Product from "../model/proudctModel.js";
 
 // METHOD GET || Show all products in cart for logged-in user
 export const getCartProducts = async (req, res, next) => {

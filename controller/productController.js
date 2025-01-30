@@ -1,4 +1,4 @@
-import Product from "../model/proudctModal.js";
+import Product from "../model/proudctModel.js";
 import Category from "../model/categoryModel.js";
 import Brand from "../model/brandModel.js";
 import { storeRefreshToken } from "../config/redis.js";

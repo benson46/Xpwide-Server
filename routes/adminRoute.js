@@ -6,6 +6,7 @@ import {
   refreshAdminAccessToken,
   updateUserStatus,
 } from "../controller/adminController.js";
+
 import {
   addNewCategory,
   getAllCategories,
@@ -19,54 +20,72 @@ import {
   updateBrand,
   updateBrandStatus,
 } from "../controller/brandController.js";
-import { addNewProduct, editProduct, getAllProducts, updateFeaturedProducts, updateProductStatus } from "../controller/productController.js";
+
+import {
+  addNewProduct,
+  editProduct,
+  getAllProducts,
+  updateFeaturedProducts,
+  updateProductStatus,
+} from "../controller/productController.js";
+
+import {
+  cancelOrderItem,
+  getAllOrdersAdmin,
+  updateOrderStatus,
+} from "../controller/orderController.js";
+
 import { authenticateAdmin } from "../middleware/authenticateAdmin.js";
 
 const adminRouter = express.Router();
-// ----------------------------------------------------
 
-// adminRouter.post("/signup", adminSignup);
+// ---------------- ADMIN AUTH ----------------
 adminRouter.post("/login", adminLogin);
 adminRouter.post("/logout", adminLogout);
-// ----------------------------------------------------
+adminRouter.post("/refresh-access-token", refreshAdminAccessToken);
 
-adminRouter.route("/users-list")
-.get(authenticateAdmin,getUsersList)
-.patch(authenticateAdmin,updateUserStatus);
+// ---------------- USERS MANAGEMENT ----------------
+adminRouter
+  .route("/users-list")
+  .get(authenticateAdmin, getUsersList)
+  .patch(authenticateAdmin, updateUserStatus);
 
-
-// ----------------------------------------------------
-
+// ---------------- CATEGORY MANAGEMENT ----------------
 adminRouter
   .route("/category")
-  .get(authenticateAdmin,getAllCategories)
-  .post(authenticateAdmin,addNewCategory)
-  .patch(authenticateAdmin,updateCategoryStatus);
+  .get(authenticateAdmin, getAllCategories)
+  .post(authenticateAdmin, addNewCategory)
+  .patch(authenticateAdmin, updateCategoryStatus);
 
-adminRouter.route("/category/:categoryID").put(authenticateAdmin,updateCategory);
+adminRouter.put("/category/:categoryID", authenticateAdmin, updateCategory);
 
-// ----------------------------------------------------
-
+// ---------------- BRAND MANAGEMENT ----------------
 adminRouter
   .route("/brands")
-  .get(authenticateAdmin,getAllBrands)
-  .post(authenticateAdmin,addNewBrands)
-  .patch(authenticateAdmin,updateBrandStatus);
+  .get(authenticateAdmin, getAllBrands)
+  .post(authenticateAdmin, addNewBrands)
+  .patch(authenticateAdmin, updateBrandStatus);
 
-adminRouter.route("/brands/:brandId").put(authenticateAdmin,updateBrand);
+adminRouter.put("/brands/:brandId", authenticateAdmin, updateBrand);
 
-// ----------------------------------------------------
+// ---------------- PRODUCT MANAGEMENT ----------------
 adminRouter
   .route("/products")
-  .get(authenticateAdmin,getAllProducts)
-  .post(authenticateAdmin,addNewProduct)
-  .patch(authenticateAdmin,updateProductStatus);
+  .get(authenticateAdmin, getAllProducts)
+  .post(authenticateAdmin, addNewProduct)
+  .patch(authenticateAdmin, updateProductStatus);
 
-adminRouter.put("/products/:products",authenticateAdmin,editProduct)
+adminRouter.put("/products/:productId", authenticateAdmin, editProduct);
 adminRouter.patch("/products/feature", authenticateAdmin, updateFeaturedProducts);
 
+// ---------------- ORDER MANAGEMENT ----------------
+// Get all orders (Admin)
+adminRouter.get("/orders", authenticateAdmin, getAllOrdersAdmin);
 
-// ----------------------------------------------------
-adminRouter.post("/refresh-access-token", refreshAdminAccessToken);
+// Update order status (Admin)
+adminRouter.put("/orders/:orderId/status", authenticateAdmin, updateOrderStatus);
+
+// Cancel a product within an order (Admin)
+adminRouter.put("/orders/:orderId/cancel/:productId", authenticateAdmin, cancelOrderItem);
 
 export default adminRouter;

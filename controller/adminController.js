@@ -83,10 +83,10 @@ export const adminLogout = async (req, res, next) => {
     const adminId = req.body;
 
     if (adminRefreshToken) {
-      await storeRefreshToken(adminId, null);
+      // await storeRefreshToken(adminId, null);
     }
-    res.clearCookie("adminAccessToken");
-    res.clearCookie("adminRefreshToken");
+    // res.clearCookie("adminAccessToken");
+    // res.clearCookie("adminRefreshToken");
     res.json({ message: "Logged out successfully." });
   } catch (error) {
     next(error);
