@@ -125,17 +125,28 @@ export const updateProductStatus = async (req, res, next) => {
 export const editProduct = async (req, res, next) => {
   const { id, name, brand, category, description, price, stock, images } =
     req.body;
+    console.log(category,brand)
   try {
     const [product, categories, brands] = await Promise.all([
       Product.findById(id),
-      Category.findOne({ title: category }),
-      Brand.findOne({ title: brand }),
+      Category.findOne({ _id: category }),
+      Brand.findOne({ _id: brand }),
     ]);
+
+    console.log(categories)
+    console.log(brands)
 
     if (!product) {
       return res.status(404).json({
         success: false,
         message: "Product not found",
+      });
+    }
+
+    if (!categories || !brands) {
+      return res.status(404).json({
+        success: false,
+        message: "Category or Brand not found",
       });
     }
 
@@ -148,13 +159,12 @@ export const editProduct = async (req, res, next) => {
     product.images = images || product.images;
     await product.save();
 
-    res
-      .status(200)
-      .json({ success: true, message: "Product updated successfully" });
+    res.status(200).json({ success: true, message: "Product updated successfully" });
   } catch (error) {
     next(error);
   }
 };
+
 
 // METHOD PATCH || Change a product status featured or not featured
 export const updateFeaturedProducts = async (req, res, next) => {
