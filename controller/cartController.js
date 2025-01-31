@@ -1,6 +1,8 @@
 import Cart from "../model/cartModel.js";
 import Product from "../model/proudctModel.js";
 
+//--------------------------------------------------------------------------------------------------------
+
 // METHOD GET || Show all products in cart for logged-in user
 export const getCartProducts = async (req, res, next) => {
   const userId = req.user.id;
@@ -88,9 +90,9 @@ export const addToCart = async (req, res, next) => {
 };
 
 // METHOD PATCH || Update product quantity in the cart
-export const updateCartQuantity = async (req, res,next) => {
+export const updateCartQuantity = async (req, res, next) => {
   const { productId, quantity } = req.body;
-  console.log(quantity)
+  console.log(quantity);
   const userId = req.user.id;
 
   try {
@@ -127,7 +129,7 @@ export const updateCartQuantity = async (req, res,next) => {
       subtotal: cart.totalAmount,
     });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 
@@ -151,7 +153,6 @@ export const removeFromCart = async (req, res, next) => {
       return res.status(404).json({ message: "Product not found in cart" });
     }
 
-    // Remove item from cart
     cart.items.splice(itemIndex, 1);
     await cart.save();
 
@@ -161,39 +162,4 @@ export const removeFromCart = async (req, res, next) => {
   }
 };
 
-// buy all ( not added yet)
-export const buyAll = async (req, res) => {
-  const userId = req.user.id; 
-
-  try {
-    const cart = await Cart.findOne({ userId }).populate("items.productId");
-
-    if (!cart || cart.items.length === 0) {
-      return res.status(400).json({ message: "Cart is empty" });
-    }
-
-    for (const item of cart.items) {
-      const product = item.productId;
-
-      // Check stock
-      if (item.quantity > product.stock) {
-        return res
-          .status(400)
-          .json({ message: `Insufficient stock for ${product.name}` });
-      }
-
-      // Deduct stock
-      product.stock -= item.quantity;
-      await product.save();
-    }
-
-    // Clear the cart after purchase
-    cart.items = [];
-    await cart.save();
-
-    res.status(200).json({ message: "Purchase successful!" });
-  } catch (error) {
-    console.error("Error processing purchase:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
+//--------------------------------------------------------------------------------------------------------

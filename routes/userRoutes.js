@@ -11,7 +11,6 @@ import {
   verifyOTP,
 } from "../controller/userController.js";
 import {
-  getAllProducts,
   getFeaturedProducts,
   getProductDetails,
   getProducts,
@@ -36,12 +35,18 @@ import {
   removeFromCart,
   updateCartQuantity,
 } from "../controller/cartController.js";
-import { getCartItems, orderSuccess } from "../controller/checkoutController.js";
-import { cancelOrderItem, getAllOrders } from "../controller/orderController.js";
+import {
+  checkoutOrderSuccess,
+  getCartItems,
+} from "../controller/checkoutController.js";
+import {
+  cancelOrderItem,
+  getAllOrders,
+} from "../controller/orderController.js";
 
 const userRouter = express.Router();
 
-// ----------------------------------------------------
+// ---------------- USER AUTH ----------------
 
 userRouter.post("/login", login);
 userRouter.post("/send-otp", sendOtp);
@@ -50,26 +55,29 @@ userRouter.post("/resend-otp", resendOTP);
 userRouter.post("/verify-otp", verifyOTP);
 userRouter.post("/reset-password", resetPassword);
 userRouter.post("/logout", logout);
+userRouter.post("/refresh-token", refreshUserAccessToken);
 
-// ----------------------------------------------------
+// ---------------- CATEGORY MANAGEMENT ----------------
 
 userRouter.get("/category", isBlockedUser, getAllCategories);
 
-// ----------------------------------------------------
+// ---------------- PRODUCT MANAGEMENT ----------------
+
 userRouter.get("/product", isBlockedUser, getProductDetails);
 userRouter.get("/products", isBlockedUser, getProducts);
-userRouter.get('/featured-products',isBlockedUser,getFeaturedProducts)
+userRouter.get("/featured-products", isBlockedUser, getFeaturedProducts);
 userRouter.get("/related-products", isBlockedUser, getRelatedProducts);
 
-// ----------------------------------------------------
+// ---------------- PROFILE MANAGEMENT ----------------
 
 userRouter
   .route("/profile")
   .get(authenticateUser, isBlockedUser, getProfileDetials)
   .put(authenticateUser, isBlockedUser, editProfileDetials);
 
-userRouter.post('/change-password',isBlockedUser,changePassword)
-// ----------------------------------------------------
+userRouter.post("/change-password", isBlockedUser, changePassword);
+
+// ---------------- ADDRESS MANAGEMENT ----------------
 
 userRouter
   .route("/address")
@@ -81,7 +89,7 @@ userRouter
   .put(authenticateUser, isBlockedUser, updateAddressDetails)
   .delete(authenticateUser, isBlockedUser, deleteAddressDetails);
 
-// ----------------------------------------------------
+// ---------------- CART MANAGEMENT ----------------
 
 userRouter
   .route("/cart")
@@ -90,15 +98,24 @@ userRouter
   .patch(authenticateUser, isBlockedUser, updateCartQuantity)
   .delete(authenticateUser, isBlockedUser, removeFromCart);
 
+// ---------------- CHECKOUT ROUTES ----------------
+
+userRouter.get("/checkout", authenticateUser, isBlockedUser, getCartItems);
+userRouter.post(
+  "/checkout-order-success",
+  authenticateUser,
+  isBlockedUser,
+  checkoutOrderSuccess
+);
+
+// ---------------- ORDER MANAGEMENT ----------------
+
+userRouter.get("/orders", authenticateUser, isBlockedUser, getAllOrders);
+userRouter.patch(
+  "/orders/:orderId/cancel/:productId",
+  authenticateUser,
+  cancelOrderItem
+);
 // ----------------------------------------------------
 
-userRouter.get('/checkout',authenticateUser,isBlockedUser,getCartItems)
-
-userRouter.post('/orders',authenticateUser,isBlockedUser,orderSuccess)
-
-userRouter.get('/orders',authenticateUser,isBlockedUser,getAllOrders)
-userRouter.patch('/orders/:orderId/cancel/:productId',authenticateUser,cancelOrderItem)
-// ----------------------------------------------------
-
-userRouter.post("/refresh-token", refreshUserAccessToken);
 export default userRouter;

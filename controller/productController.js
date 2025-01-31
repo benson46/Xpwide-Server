@@ -81,7 +81,7 @@ export const addNewProduct = async (req, res, next) => {
       product: savedProduct,
     });
   } catch (error) {
-    next();
+    next(error);
   }
 };
 
@@ -161,7 +161,6 @@ export const updateFeaturedProducts = async (req, res, next) => {
   const { productId } = req.body;
 
   try {
-    // Find the product by ID
     const product = await Product.findById(productId);
 
     if (!product) {
@@ -171,7 +170,6 @@ export const updateFeaturedProducts = async (req, res, next) => {
       });
     }
 
-    // Toggle the isFeatured status (If already featured, remove the feature, else add it)
     product.isFeatured = !product.isFeatured;
     await product.save();
 
@@ -187,35 +185,38 @@ export const updateFeaturedProducts = async (req, res, next) => {
   }
 };
 
-
 //-----------------------------------------  USER CONTROLLES ---------------------------------------------------------------
 
 // METHOD GET || GET A PRODUCT DETIALS
-export const getProductDetails = async (req, res) => {
+export const getProductDetails = async (req, res, next) => {
   const { productId } = req.query;
 
-  const product = await Product.findById(productId)
-    .populate({
-      path: "brand",
-      select: "title",
-    })
-    .populate({
-      path: "category",
-      select: "title",
-    });
+  try {
+    const product = await Product.findById(productId)
+      .populate({
+        path: "brand",
+        select: "title",
+      })
+      .populate({
+        path: "category",
+        select: "title",
+      });
 
-  if (!product) {
-    res.status(400).json({
-      message: "Prooduct Not Found",
-      success: false,
+    if (!product) {
+      res.status(400).json({
+        message: "Prooduct Not Found",
+        success: false,
+      });
+    }
+
+    res.status(200).json({
+      product,
+      success: true,
+      message: "Product fetched Successfully",
     });
+  } catch (error) {
+    next(error);
   }
-
-  res.status(200).json({
-    product,
-    success: true,
-    message: "Product fetched Successfully",
-  });
 };
 
 // Method GET || GET CATEGORY BASED PRODUCTS
@@ -227,7 +228,6 @@ export const getProducts = async (req, res, next) => {
       path: "category",
       select: "title isBlocked",
     });
-
 
     const filteredProducts =
       category === "all" || !category
@@ -248,7 +248,30 @@ export const getProducts = async (req, res, next) => {
 
     return res.status(200).json({ products: filteredProducts });
   } catch (error) {
-    next(error);   }
+    next(error);
+  }
+};
+
+// METHOD GET || GET FEATURED PRODUCTS
+export const getFeaturedProducts = async (req, res, next) => {
+  try {
+    const products = await Product.find()
+      .populate({
+        path: "category",
+        select: "title isBlocked",
+      })
+      .populate({
+        path: "brand",
+        select: "title",
+      });
+
+    const filteredProducts = products.filter((product) => {
+      return !product.category.isBlocked && product.isFeatured;
+    });
+    return res.status(200).json({ products: filteredProducts });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // METHOD GET || GET RELATED PRODUCTS
@@ -272,26 +295,5 @@ export const getRelatedProducts = async (req, res, next) => {
     next(error);
   }
 };
-
-export const getFeaturedProducts = async (req, res, next) => {
-    try {
-      const products = await Product.find()
-        .populate({
-          path: "category",
-          select: "title isBlocked",
-        })
-        .populate({
-          path: "brand",
-          select: "title",
-        });
-
-        const filteredProducts = products.filter((product) => {
-          return !product.category.isBlocked && product.isFeatured;
-        });
-        return res.status(200).json({ products: filteredProducts });
-  } catch (error) {
-    next(error)
-  }
-}
 
 // --------------------------------------------------------------------------------------------------------

@@ -30,7 +30,6 @@ export const addNewAddressDetails = async (req, res, next) => {
     });
   }
 
-
   try {
     const userId = req.user.id;
     const {
@@ -55,19 +54,19 @@ export const addNewAddressDetails = async (req, res, next) => {
       state,
       pincode,
     });
-    
+
     const savedAddress = await newAddress.save();
     res.status(201).json({
       success: true,
       savedAddress,
     });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 
 //  METHOD PUT || Update an existing address for the logged-in user
-export const updateAddressDetails = async (req, res,next) => {
+export const updateAddressDetails = async (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({
       success: false,
@@ -97,12 +96,12 @@ export const updateAddressDetails = async (req, res,next) => {
       updatedAddress,
     });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 
 //  METHOD DELETE || Delete an address for the logged-in user
-export const deleteAddressDetails = async (req, res,next) => {
+export const deleteAddressDetails = async (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({
       success: false,
@@ -131,6 +130,6 @@ export const deleteAddressDetails = async (req, res,next) => {
       message: "Address deleted successfully.",
     });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };

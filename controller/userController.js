@@ -34,6 +34,8 @@ const setCookies = (res, accessToken, refreshToken) => {
   });
 };
 
+// --------------------------------------------------------------------------------------------------------
+
 // METHOD POST || Login as user
 export const login = async (req, res, next) => {
   try {
@@ -77,8 +79,8 @@ export const login = async (req, res, next) => {
         accessToken,
       });
     } else {
-      return res.status(401).json({
-        message: "Invalid password.",
+      return res.status(404).json({
+        message: "Invalid Credintials.",
       });
     }
   } catch (error) {
@@ -245,7 +247,9 @@ export const changePassword = async (req, res, next) => {
     user.password = hashedPassword;
     await user.save();
 
-    res.status(200).json({success: true, message: "Password updated successfully." });
+    res
+      .status(200)
+      .json({ success: true, message: "Password updated successfully." });
   } catch (error) {
     next(error);
   }
@@ -255,7 +259,7 @@ export const changePassword = async (req, res, next) => {
 export const logout = async (req, res, next) => {
   try {
     const refreshToken = req.cookies.refreshToken;
-    const userId = JSON.stringify(req.body.userId)
+    const userId = JSON.stringify(req.body.userId);
     if (refreshToken) {
       await deleteRefreshToken(userId);
     }
@@ -266,6 +270,8 @@ export const logout = async (req, res, next) => {
     next(error);
   }
 };
+
+// --------------------------------------------------------------------------------------------------------
 
 // Method Post || Refresh Access Token
 export const refreshUserAccessToken = async (req, res, next) => {
@@ -279,7 +285,6 @@ export const refreshUserAccessToken = async (req, res, next) => {
 
     const refreshTokenFromRedis = await getRefreshToken(decode.id);
     const cleanedRedisToken = refreshTokenFromRedis.replace(/^"|"$/g, "");
-
 
     if (!cleanedRedisToken || refreshToken !== cleanedRedisToken) {
       return res.status(403).json({ message: "Invalid or mismatched token." });

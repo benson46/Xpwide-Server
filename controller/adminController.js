@@ -83,10 +83,10 @@ export const adminLogout = async (req, res, next) => {
     const adminId = req.body;
 
     if (adminRefreshToken) {
-      // await storeRefreshToken(adminId, null);
+      await storeRefreshToken(adminId, null);
     }
-    // res.clearCookie("adminAccessToken");
-    // res.clearCookie("adminRefreshToken");
+    res.clearCookie("adminAccessToken");
+    res.clearCookie("adminRefreshToken");
     res.json({ message: "Logged out successfully." });
   } catch (error) {
     next(error);
@@ -123,7 +123,7 @@ export const getUsersList = async (req, res, next) => {
   }
 };
 
-// METHOD PATHC || Block User
+// METHOD PATCH || Block User
 export const updateUserStatus = async (req, res, next) => {
   const { userId } = req.body;
 
@@ -171,13 +171,11 @@ export const refreshAdminAccessToken = async (req, res, next) => {
     );
 
     const refreshTokenFromRedis = await getRefreshToken(decode.id);
-    const cleanedRedisToken = refreshTokenFromRedis.replace(/^"|"$/g, ''); // Remove surrounding quotes
-
+    const cleanedRedisToken = refreshTokenFromRedis.replace(/^"|"$/g, ""); // Remove surrounding quotes
 
     if (!cleanedRedisToken || adminRefreshToken !== cleanedRedisToken) {
       return res.status(403).json({ message: "Invalid or mismatched token." });
     }
-    
 
     const newAccessToken = generateAccessToken(decode);
     res.status(200).json({
@@ -221,6 +219,3 @@ export const refreshAdminAccessToken = async (req, res, next) => {
 		res.status(500).json({ message: error.message });
 	}
 }; */
-
-
-

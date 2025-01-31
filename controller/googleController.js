@@ -24,6 +24,8 @@ const setCookies = (res, accessToken, refreshToken) => {
   });
 };
 
+//--------------------------------------------------------------------------------------------------------
+
 // METHOD POST || Login with google for user
 export const login = async (req, res, next) => {
   try {
@@ -82,9 +84,11 @@ export const login = async (req, res, next) => {
       lastName: user.lastName,
       image: user.image,
       isBlocked: user.isBlocked,
-      googleUser:true
+      googleUser: true,
     });
   } catch (error) {
     next(error);
   }
 };
+
+//--------------------------------------------------------------------------------------------------------

@@ -79,13 +79,8 @@ adminRouter.put("/products/:productId", authenticateAdmin, editProduct);
 adminRouter.patch("/products/feature", authenticateAdmin, updateFeaturedProducts);
 
 // ---------------- ORDER MANAGEMENT ----------------
-// Get all orders (Admin)
 adminRouter.get("/orders", authenticateAdmin, getAllOrdersAdmin);
-
-// Update order status (Admin)
 adminRouter.put("/orders/:orderId/status", authenticateAdmin, updateOrderStatus);
-
-// Cancel a product within an order (Admin)
 adminRouter.put("/orders/:orderId/cancel/:productId", authenticateAdmin, cancelOrderItem);
 
 export default adminRouter;

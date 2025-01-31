@@ -32,6 +32,8 @@ export const editProfileDetials = async (req, res, next) => {
     await user.save();
     res.json({ success: true, user });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
+
+// --------------------------------------------------------------------------------------------------------

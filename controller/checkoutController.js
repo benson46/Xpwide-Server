@@ -1,6 +1,10 @@
 import Cart from "../model/cartModel.js";
 import Order from "../model/orderModel.js";
-import Product from "../model/proudctModel.js"
+import Product from "../model/proudctModel.js";
+
+//--------------------------------------------------------------------------------------------------------
+
+// METHOD GET || GET CART ITEMS IN CHECKOUT
 export const getCartItems = async (req, res, next) => {
   const userId = req.user.id;
 
@@ -8,19 +12,16 @@ export const getCartItems = async (req, res, next) => {
     const cart = await Cart.findOne({ userId }).populate("items.productId");
 
     if (!cart) {
-      return res
-        .status(200)
-        .json({
-          items: [],
-          totalAmount: 0,
-          message: "No prodcuts in cart to order",
-        });
+      return res.status(200).json({
+        items: [],
+        totalAmount: 0,
+        message: "No prodcuts in cart to order",
+      });
     }
     const validItems = cart.items.filter((item) => item.productId.stock > 0);
-    const totalQuantity = validItems.reduce((sum,item)=>{
-        return sum + item.quantity 
-    },0)
-
+    const totalQuantity = validItems.reduce((sum, item) => {
+      return sum + item.quantity;
+    }, 0);
 
     const totalAmount = validItems.reduce((sum, item) => {
       return sum + item.productId.price * item.quantity;
@@ -29,7 +30,7 @@ export const getCartItems = async (req, res, next) => {
     res.status(200).json({
       items: cart.items,
       subtotal: totalAmount,
-      quantity:totalQuantity,
+      quantity: totalQuantity,
       message:
         validItems.length > 0
           ? "Products fetched successfully"
@@ -40,8 +41,8 @@ export const getCartItems = async (req, res, next) => {
   }
 };
 
-
-export const orderSuccess = async (req, res, next) => {
+// METHOD POST || CHECK THE ORDER SUCCESS OR NOT
+export const checkoutOrderSuccess = async (req, res, next) => {
   try {
     const { addressId, paymentMethod, products, totalAmount } = req.body;
     const userId = req.user.id;
@@ -59,7 +60,7 @@ export const orderSuccess = async (req, res, next) => {
       products,
       userId,
       totalAmount,
-      status:'Pending',
+      status: "Pending",
     });
 
     for (const item of products) {
@@ -76,8 +77,8 @@ export const orderSuccess = async (req, res, next) => {
           .json({ message: `Insufficient stock for product: ${product.name}` });
       }
 
-      product.stock -= item.quantity; // Reduce stock
-      await product.save(); 
+      product.stock -= item.quantity;
+      await product.save();
     }
 
     await order.save();
@@ -91,3 +92,5 @@ export const orderSuccess = async (req, res, next) => {
     next(error);
   }
 };
+
+//--------------------------------------------------------------------------------------------------------

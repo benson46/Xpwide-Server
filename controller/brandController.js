@@ -1,5 +1,7 @@
 import Brand from "../model/brandModel.js";
 
+//--------------------------------------------------------------------------------------------------------
+
 // METHOD GET || Get all brands
 export const getAllBrands = async (req, res, next) => {
   try {
@@ -77,3 +79,5 @@ export const updateBrand = async (req, res, next) => {
     next(error);
   }
 };
+
+//--------------------------------------------------------------------------------------------------------
