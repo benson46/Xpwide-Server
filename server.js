@@ -21,8 +21,7 @@ const PORT = process.env.PORT || 5000;
 client.on("connect", () => console.log("Connected to Redis"));
 client.on("error", (error) => console.log("Redis connection error", error));
 
-// ✅ Set up Morgan Logging
-const logDirectory = path.join("logs");
+const logDirectory = path.join("logs"); 
 if (!fs.existsSync(logDirectory)) {
   fs.mkdirSync(logDirectory);
 }
