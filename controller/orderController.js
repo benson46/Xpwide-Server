@@ -85,6 +85,7 @@ export const updateOrderStatus = async (req, res, next) => {
 // METHOD PATCH || CANCEL PRODUCT
 export const cancelOrderItem = async (req, res, next) => {
   try {
+    console.log('hi')
     const { orderId, productId } = req.params;
     console.log(productId);
 

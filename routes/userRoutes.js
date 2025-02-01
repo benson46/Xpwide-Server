@@ -50,7 +50,7 @@ const userRouter = express.Router();
 
 userRouter.post("/login", login);
 userRouter.post("/send-otp", sendOtp);
-userRouter.post("/forget-password-otp", forgetPasswordOtp);
+userRouter.post("/forgot-password-otp", forgetPasswordOtp);
 userRouter.post("/resend-otp", resendOTP);
 userRouter.post("/verify-otp", verifyOTP);
 userRouter.post("/reset-password", resetPassword);

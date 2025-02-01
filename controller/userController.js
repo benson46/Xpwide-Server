@@ -165,11 +165,6 @@ export const verifyOTP = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
 
-    const existUser = await User.findOne({ email });
-    if (existUser) {
-      return res.status(400).json({ message: "User already exists." });
-    }
-
     if (!email || !otp) {
       throw new Error("Empty OTP details are not allowed");
     }
@@ -179,21 +174,37 @@ export const verifyOTP = async (req, res, next) => {
       return res.status(400).json({ message: "OTP expired" });
     }
     if (+currentOtp !== +otp) {
-      return res.status(403).json({ message: "OTP mismatching" });
+      return res.status(400).json({ message: "OTP mismatching" });
     }
 
-    const userData = await getData(email);
-    const user = new User({ ...userData });
-    await user.save();
+    const existingUser = await User.findOne({ email });
 
-    res.json({
-      status: "VERIFIED",
-      message: "User email verified successfully",
-    });
+    if (existingUser) {
+      // If user exists, redirect to reset password flow
+      return res.json({
+        status: "VERIFIED",
+        message: "OTP verified. Proceed to reset password.",
+      });
+    } else {
+      // If user does not exist, create a new user
+      const userData = await getData(email);
+      if (!userData) {
+        return res.status(400).json({ message: "User data not found" });
+      }
+
+      const user = new User({ ...userData });
+      await user.save();
+
+      return res.json({
+        status: "VERIFIED",
+        message: "User email verified successfully, account created.",
+      });
+    }
   } catch (error) {
     next(error);
   }
 };
+
 
 // METHOD POST || Reset Password
 export const resetPassword = async (req, res, next) => {

@@ -43,6 +43,7 @@ const addressSchema = new mongoose.Schema(
     },
     addressType: {
       type: String,
+      
       enum: ["Home", "Work", "Other"],
       default: "Home",
       required: [true, "Address type is required"],
