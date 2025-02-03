@@ -42,7 +42,10 @@ import {
 import {
   cancelOrderItem,
   getAllOrders,
+  initiateReturn,
 } from "../controller/orderController.js";
+import Order from "../model/orderModel.js";
+
 
 const userRouter = express.Router();
 
@@ -116,6 +119,11 @@ userRouter.patch(
   authenticateUser,
   cancelOrderItem
 );
+
+userRouter.patch("/orders/:orderId/return/:productId", initiateReturn);
+
+// ---------------- PAYMENT MANAGEMENT ----------------
+
 // ----------------------------------------------------
 
 export default userRouter;

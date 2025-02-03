@@ -31,20 +31,28 @@ const orderSchema = new mongoose.Schema(
         },
         status: {
           type: String,
-          enum: ["Pending", "Shipped", "Delivered", "Cancelled","Returned"],
+          enum: [
+            "Pending",
+            "Shipped",
+            "Delivered",
+            "Cancelled",
+            "Return Pending",
+            "Return Approved",
+            "Return Rejected",
+          ],
           default: "Pending",
         },
-        deliveryDate:{
-          type:Date,
-          default:null,
-        }
+        deliveryDate: {
+          type: Date,
+          default: null,
+        },
       },
     ],
     totalAmount: {
       type: Number,
       required: true,
     },
-    
+
     createdAt: {
       type: Date,
       default: Date.now,

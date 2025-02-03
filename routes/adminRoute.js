@@ -32,6 +32,7 @@ import {
 import {
   cancelOrderItem,
   getAllOrdersAdmin,
+  handleReturnRequest,
   updateOrderStatus,
 } from "../controller/orderController.js";
 
@@ -82,5 +83,7 @@ adminRouter.patch("/products/feature", authenticateAdmin, updateFeaturedProducts
 adminRouter.get("/orders", authenticateAdmin, getAllOrdersAdmin);
 adminRouter.put("/orders/:orderId/status", authenticateAdmin, updateOrderStatus);
 adminRouter.put("/orders/:orderId/cancel/:productId", authenticateAdmin, cancelOrderItem);
+adminRouter.patch("/orders/:orderId/handle-return/:productId", handleReturnRequest);
+
 
 export default adminRouter;

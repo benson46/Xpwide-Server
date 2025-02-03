@@ -282,6 +282,13 @@ export const logout = async (req, res, next) => {
   }
 };
 
+export const getUserSpecificInfo = async (req, res) => {
+  const userData = await User.findById(req.user.id);
+
+  res.json({ success: true, userData });
+};
+
+
 // --------------------------------------------------------------------------------------------------------
 
 // Method Post || Refresh Access Token

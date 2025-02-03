@@ -80,12 +80,50 @@ export const updateOrderStatus = async (req, res, next) => {
   }
 };
 
+// METHOD PATCH || APPROVE/RETURN REJECT (ADMIN SIDE)
+export const handleReturnRequest = async (req, res, next) => {
+  try {
+    const { orderId, productId } = req.params;
+    const { action } = req.body; // "approve" or "reject"
+
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    const productIndex = order.products.findIndex(
+      (p) => p.productId.toString() === productId.toString()
+    );
+
+    if (productIndex === -1)
+      return res.status(404).json({ message: "Product not found in order" });
+
+    if (order.products[productIndex].status !== "Return Pending") {
+      return res
+        .status(400)
+        .json({ message: "Product is not in Return Pending state" });
+    }
+
+    if (action === "approve") {
+      order.products[productIndex].status = "Return Approved";
+    } else if (action === "reject") {
+      order.products[productIndex].status = "Return Rejected";
+    } else {
+      return res.status(400).json({ message: "Invalid action" });
+    }
+
+    await order.save();
+    res.json({ message: `Return request ${action}ed`, order });
+  } catch (error) {
+    console.error("Error handling return request:", error);
+    next(error);
+  }
+};
+
 //-----------------------------------------  COMMON CONTROLLES ---------------------------------------------------------------
 
 // METHOD PATCH || CANCEL PRODUCT
 export const cancelOrderItem = async (req, res, next) => {
   try {
-    console.log('hi')
+    console.log("hi");
     const { orderId, productId } = req.params;
     console.log(productId);
 
@@ -161,36 +199,34 @@ export const getAllOrders = async (req, res, next) => {
   }
 };
 
-//--------------------------------------------------------------------------------------------------------
-
-/* return order (start from here)
-export const returnOrderItem = async (req, res, next) => {
+// METHOD PATCH || INITIATE RETURN REQUEST (USER SIDE)
+export const initiateReturn = async (req, res, next) => {
   try {
     const { orderId, productId } = req.params;
+
     const order = await Order.findById(orderId);
     if (!order) return res.status(404).json({ message: "Order not found" });
 
     const productIndex = order.products.findIndex(
       (p) => p.productId.toString() === productId
     );
-    if (productIndex === -1) return res.status(404).json({ message: "Product not found in order" });
+    if (productIndex === -1)
+      return res.status(404).json({ message: "Product not found in order" });
 
-    if (order.products[productIndex].status === "Returned") {
-      return res.status(400).json({ message: "Product is already returned" });
+    if (order.products[productIndex].status !== "Delivered") {
+      return res
+        .status(400)
+        .json({ message: "Product must be delivered to initiate return" });
     }
 
-    order.products[productIndex].status = "Returned";
-
-    if (order.products.every((p) => p.status === "Returned")) {
-      order.status = "Returned";
-    }
-
+    order.products[productIndex].status = "Return Pending";
     await order.save();
 
-    res.json({ message: "Product return initiated successfully", order });
+    res.json({ message: "Return request initiated", order });
   } catch (error) {
-    console.error("Error returning product:", error);
+    console.error("Error initiating return:", error);
     next(error);
   }
 };
-*/
+
+//--------------------------------------------------------------------------------------------------------
