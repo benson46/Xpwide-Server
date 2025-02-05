@@ -15,7 +15,7 @@ export const getAllOrdersAdmin = async (req, res, next) => {
 
     const processedOrders = orders.map((order) => ({
       _id: order._id,
-      customerName: `${order.address?.name || "Unknown"}`,
+      customerName: `${order.addressId?.name || "Unknown"}`,
       customerEmail: order.userId?.email || "Unknown",
       address: `${order.addressId?.address}, ${order.addressId?.city}, ${order.addressId?.state} - ${order.addressId?.pincode}`,
       products: order.products.map((p) => ({
