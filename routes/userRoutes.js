@@ -2,6 +2,7 @@ import express from "express";
 import {
   changePassword,
   forgetPasswordOtp,
+  getUserSpecificInfo,
   login,
   logout,
   refreshUserAccessToken,
@@ -45,6 +46,8 @@ import {
   initiateReturn,
 } from "../controller/orderController.js";
 import Order from "../model/orderModel.js";
+import { getWalletDetails, updateWalletbalance } from "../controller/walletController.js";
+import { addWishlist, getWishlist } from "../controller/wishlistController.js";
 
 
 const userRouter = express.Router();
@@ -122,8 +125,16 @@ userRouter.patch(
 
 userRouter.patch("/orders/:orderId/return/:productId", initiateReturn);
 
-// ---------------- PAYMENT MANAGEMENT ----------------
+// ---------------- Wallet MANAGEMENT ----------------
+
+userRouter.route('/wallet').get(authenticateUser,getWalletDetails).post(authenticateUser,updateWalletbalance)
+
+// ---------------- Wishlist MANAGEMENT ----------------
+
+userRouter.get('/get-wishlist',authenticateUser,getWishlist)
+userRouter.post('/add-wishlist',authenticateUser,addWishlist);
 
 // ----------------------------------------------------
 
+userRouter.get('/get-user-info',authenticateUser,getUserSpecificInfo)
 export default userRouter;

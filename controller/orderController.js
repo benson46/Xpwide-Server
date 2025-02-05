@@ -1,9 +1,10 @@
 import Order from "../model/orderModel.js";
 import Product from "../model/proudctModel.js";
+import Wallet from "../model/walletModel.js";  
 
-//------------------------------------------ ADMIN CONTROLLES --------------------------------------------------------------
+//------------------------------------------ ADMIN CONTROLS --------------------------------------------------------------
 
-// METHOD GET || GET ALL ORDER DETIALS
+// METHOD GET || GET ALL ORDER DETAILS
 export const getAllOrdersAdmin = async (req, res, next) => {
   try {
     const orders = await Order.find()
@@ -39,7 +40,7 @@ export const getAllOrdersAdmin = async (req, res, next) => {
   }
 };
 
-// METHOD PUT || UPDATE ORDER DETIALS - SHIPPED,DELIVERED ETC..
+// METHOD PUT || UPDATE ORDER DETAILS - SHIPPED, DELIVERED, ETC..
 export const updateOrderStatus = async (req, res, next) => {
   try {
     const { orderId } = req.params;
@@ -64,12 +65,9 @@ export const updateOrderStatus = async (req, res, next) => {
       order.products[productIndex].deliveryDate = new Date();
     }
 
-    console.log(order.products[productIndex].deliveryDate);
-
     if (order.products.every((p) => p.status === "Delivered")) {
       order.status = "Delivered";
       order.deliveryDate = new Date();
-      console.log("deliverydate: ", order.deliveryDate);
     }
 
     await order.save();
@@ -104,6 +102,26 @@ export const handleReturnRequest = async (req, res, next) => {
 
     if (action === "approve") {
       order.products[productIndex].status = "Return Approved";
+
+      // Update Wallet: Credit the user's wallet with the return amount
+      const product = order.products[productIndex];
+      const totalAmount = product.price * product.quantity;
+
+      const wallet = await Wallet.findOneAndUpdate(
+        { user: order.userId },
+        {
+          $inc: { balance: totalAmount },
+          $push: {
+            transactions: {
+              transaction_date: new Date(),
+              transaction_type: "credit",
+              transaction_status: "completed",
+              amount: totalAmount,
+            },
+          },
+        },
+        { new: true, upsert: true }
+      );
     } else if (action === "reject") {
       order.products[productIndex].status = "Return Rejected";
     } else {
@@ -118,48 +136,72 @@ export const handleReturnRequest = async (req, res, next) => {
   }
 };
 
-//-----------------------------------------  COMMON CONTROLLES ---------------------------------------------------------------
+//----------------------------------------- COMMON CONTROLS ---------------------------------------------------------------
 
-// METHOD PATCH || CANCEL PRODUCT
+// METHOD PATCH || CANCEL PRODUCT(for both admin and user)
 export const cancelOrderItem = async (req, res, next) => {
   try {
-    console.log("hi");
     const { orderId, productId } = req.params;
-    console.log(productId);
 
-    const order = await Order.findById(orderId);
+    const order = await Order.findById(orderId).populate("products.productId"); 
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    const productIndex = order.products.findIndex(
-      (p) => p.productId.toString() === productId
-    );
-    if (productIndex === -1)
-      return res.status(404).json({ message: "Product not found in order" });
+    console.log("Order Products:", order.products); // Debugging Log
 
-    if (order.products[productIndex].status === "Cancelled") {
+    // Find the product within the order
+    const product = order.products.find(
+      (p) => p.productId && p.productId._id.toString() === productId
+    );
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found in order" });
+    }
+
+    if (product.status === "Cancelled") {
       return res.status(400).json({ message: "Product is already cancelled" });
     }
 
-    order.products[productIndex].status = "Cancelled";
+    // Update the product status to "Cancelled"
+    product.status = "Cancelled";
 
+    // Check if all products are cancelled
     if (order.products.every((p) => p.status === "Cancelled")) {
       order.status = "Cancelled";
     }
 
+    // Update wallet if the product is cancelled
+    const userWallet = await Wallet.findOne({ user: order.userId });
+    if (!userWallet) {
+      return res.status(404).json({ message: "User wallet not found" });
+    }
+
+    // Ensure price calculation is correct
+    const productPrice = product.productId.price * product.quantity;
+    userWallet.balance += productPrice;
+
+    await userWallet.save(); // Save updated wallet
+
+    // Save the order after cancellation
     await order.save();
 
-    res.json({ message: "Product cancelled successfully", order });
+    res.json({
+      message: "Product cancelled successfully and amount added to wallet",
+      order,
+      userWallet,
+    });
   } catch (error) {
     console.error("Error cancelling product:", error);
     next(error);
   }
 };
 
-//-----------------------------------------  USER CONTROLLES ---------------------------------------------------------------
 
-// METHOD GET || CANCEL PRODUCT
+//----------------------------------------- USER CONTROLS ---------------------------------------------------------------
+
+// METHOD GET || GET ALL ORDER DETAILS (USER)
 export const getAllOrders = async (req, res, next) => {
   try {
+    console.log(req.cookies)
     const userId = req.user.id;
     const orders = await Order.find({ userId })
       .populate("addressId")
@@ -228,5 +270,3 @@ export const initiateReturn = async (req, res, next) => {
     next(error);
   }
 };
-
-//--------------------------------------------------------------------------------------------------------

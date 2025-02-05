@@ -37,6 +37,7 @@ import {
 } from "../controller/orderController.js";
 
 import { authenticateAdmin } from "../middleware/authenticateAdmin.js";
+import { addNewCoupon, getAllCoupon } from "../controller/couponController.js";
 
 const adminRouter = express.Router();
 
@@ -77,13 +78,33 @@ adminRouter
   .patch(authenticateAdmin, updateProductStatus);
 
 adminRouter.put("/products/:productId", authenticateAdmin, editProduct);
-adminRouter.patch("/products/feature", authenticateAdmin, updateFeaturedProducts);
+adminRouter.patch(
+  "/products/feature",
+  authenticateAdmin,
+  updateFeaturedProducts
+);
 
 // ---------------- ORDER MANAGEMENT ----------------
 adminRouter.get("/orders", authenticateAdmin, getAllOrdersAdmin);
-adminRouter.put("/orders/:orderId/status", authenticateAdmin, updateOrderStatus);
-adminRouter.put("/orders/:orderId/cancel/:productId", authenticateAdmin, cancelOrderItem);
-adminRouter.patch("/orders/:orderId/handle-return/:productId", handleReturnRequest);
+adminRouter.put(
+  "/orders/:orderId/status",
+  authenticateAdmin,
+  updateOrderStatus
+);
+adminRouter.put(
+  "/orders/:orderId/cancel/:productId",
+  authenticateAdmin,
+  cancelOrderItem
+);
+adminRouter.patch(
+  "/orders/:orderId/handle-return/:productId",
+  handleReturnRequest
+);
 
+// ---------------- COUPON MANAGEMENT ----------------
+adminRouter
+  .route("/coupon")
+  .get(authenticateAdmin, getAllCoupon)
+  .post(authenticateAdmin, addNewCoupon);
 
 export default adminRouter;

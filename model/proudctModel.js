@@ -11,10 +11,6 @@ const product_schema = new mongoose.Schema({
     ref: "brand",
     required: true,
   },
-  is_active: {
-    type: Boolean,
-    default: true,
-  },
   description: {
     type: String,
     required: true,

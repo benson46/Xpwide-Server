@@ -1,4 +1,4 @@
-import Wallet from "../model/walletModel";
+import Wallet from "../model/walletModel.js";
 
 // for getting wallet details of a user
 export const getWalletDetails = async (req, res) => {
@@ -33,9 +33,10 @@ export const updateWalletbalance = async (req, res) => {
   const transaction = {
     transactionDate: new Date(),
     transactionType: "credit",
-    transactionStatus: paymentStatus,
+    transactionStatus: paymentStatus === "failed" ? "failed" : "completed", // Use valid values here
     amount: amount,
   };
+  
 
   userWallet.transactions.push(transaction);
 
