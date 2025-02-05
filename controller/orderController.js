@@ -20,7 +20,7 @@ export const getAllOrdersAdmin = async (req, res, next) => {
       }`,
       customerEmail: order.userId?.email || "Unknown",
       address: `${order.addressId?.address}, ${order.addressId?.city}, ${order.addressId?.state} - ${order.addressId?.pincode}`,
-      products: order.products.map((p) => ({
+      products: order.products.map((p) => ({ 
         productId: p.productId._id,
         name: p.productId.name,
         price: p.productId.price,
