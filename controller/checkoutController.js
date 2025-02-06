@@ -1,6 +1,8 @@
+import mongoose from "mongoose";
 import Cart from "../model/cartModel.js";
 import Order from "../model/orderModel.js";
 import Product from "../model/proudctModel.js";
+import Wallet from "../model/walletModel.js";
 
 //--------------------------------------------------------------------------------------------------------
 
@@ -42,16 +44,36 @@ export const getCartItems = async (req, res, next) => {
 };
 
 // METHOD POST || CHECK THE ORDER SUCCESS OR NOT
+
 export const checkoutOrderSuccess = async (req, res, next) => {
   try {
     const { addressId, paymentMethod, products, totalAmount } = req.body;
     const userId = req.user.id;
+
     if (!products || products.length === 0) {
       return res.status(400).json({ message: "No products in order" });
     }
 
     if (!req.user || !req.user.id) {
       return res.status(401).json({ message: "Unauthorized user" });
+    }
+
+    if (paymentMethod === "Wallet") {
+      const wallet = await Wallet.findOne({ user: userId });
+      if (!wallet || wallet.balance < totalAmount) {
+        return res.status(400).json({ message: "Insufficient wallet balance" });
+      }
+
+      wallet.balance -= totalAmount;
+      wallet.transactions.push({
+        orderId: new mongoose.Types.ObjectId(),
+        transactionDate: new Date(),
+        transactionType: "debit",
+        transactionStatus: "completed",
+        amount: totalAmount,
+        description: `Paid for order`,
+      });
+      await wallet.save();
     }
 
     const order = new Order({

@@ -14,11 +14,12 @@ const walletSchema = new mongoose.Schema({
     {
       orderId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "order",
+        ref: "Order",
       },
       transactionDate: {
         type: Date,
         required: true,
+        default: Date.now,
       },
       transactionType: {
         type: String,
@@ -34,10 +35,14 @@ const walletSchema = new mongoose.Schema({
         type: Number,
         required: true,
       },
+      description: {
+        type: String,
+        required: true,
+      },
     },
   ],
 });
 
-const Wallet = mongoose.model("wallet", walletSchema);
+const Wallet = mongoose.model("Wallet", walletSchema);
 
 export default Wallet;
