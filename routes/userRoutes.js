@@ -91,7 +91,7 @@ userRouter
   .post(authenticateUser, isBlockedUser, addNewAddressDetails);
 
 userRouter
-  .route("address/:id")
+  .route("/address/:id")
   .put(authenticateUser, isBlockedUser, updateAddressDetails)
   .delete(authenticateUser, isBlockedUser, deleteAddressDetails);
 
