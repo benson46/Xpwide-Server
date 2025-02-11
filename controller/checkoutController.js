@@ -106,8 +106,8 @@ export const checkoutOrderSuccess = async (req, res, next) => {
             pricing.discountedPrice &&
             Number(pricing.discountedPrice) > 0
               ? Number(pricing.discountedPrice)
-              : product.price,
-          originalPrice: product.price,
+              : product._doc.price,
+          originalPrice: product._doc.price,
         };
       })
     );

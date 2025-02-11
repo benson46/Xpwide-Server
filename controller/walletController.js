@@ -15,16 +15,23 @@ export const getWalletDetails = async (req, res) => {
 // for updating wallet balance
 export const updateWalletbalance = async (req, res) => {
   const userId = req.user.id;
-  const { amount, paymentStatus, type,products } = req.body; // 'credit' or 'debit'
-  if(products){
-    const product = products.reduce((acc,p)=>acc.push(p.productName),[])
-  } 
+  const { amount, paymentStatus, type, products } = req.body; // 'credit' or 'debit'
+  
+  // Declare productNames outside the conditional so it can be used later.
+  let productNames = '';
+
+  if (products && Array.isArray(products)) {
+    // Create an array of product names and join them into a string.
+    productNames = products.map(p => p.productName).join(', ');
+  }
+  
   let userWallet = await Wallet.findOne({ user: userId });
 
   if (!userWallet) {
     userWallet = new Wallet({ user: userId, balance: 0 });
   }
 
+  // Update wallet balance based on the type of transaction
   if (type === "credit" && paymentStatus !== "failed") {
     userWallet.balance += amount;
   } else if (type === "debit" && userWallet.balance >= amount) {
@@ -37,7 +44,9 @@ export const updateWalletbalance = async (req, res) => {
     transactionDate: new Date(),
     transactionType: type,
     transactionStatus: paymentStatus === "failed" ? "failed" : "completed",
-    description: type === "credit" ? `Added ₹${amount} to wallet` : `Spent ₹${amount} for ${product}`,
+    description: type === "credit" 
+      ? `Added ₹${amount} to wallet` 
+      : `Spent ₹${amount} for ${productNames}`,
     amount: amount,
   };
 
@@ -46,3 +55,4 @@ export const updateWalletbalance = async (req, res) => {
 
   res.json({ success: true, wallet: userWallet });
 };
+
