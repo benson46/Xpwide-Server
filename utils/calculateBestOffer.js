@@ -24,9 +24,8 @@ const productOffer = await Offer.findOne({
   isActive: true,
 });
 
-
-  let originalPrice = product._doc.price; // Use the current discounted price as base
-  console.log('og',originalPrice)
+  console.log("product d price: ",product._doc.price)
+  let originalPrice = product._doc.price ; // Use the current discounted price as base
   let bestOffer = null;
   let finalPrice = originalPrice;
 
