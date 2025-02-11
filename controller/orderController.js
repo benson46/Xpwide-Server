@@ -144,7 +144,6 @@ export const cancelOrderItem = async (req, res, next) => {
     const order = await Order.findById(orderId).populate("products.productId"); 
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    console.log("Order Products:", order.products); // Debugging Log
 
     // Find the product within the order
     const product = order.products.find(
@@ -199,7 +198,6 @@ export const cancelOrderItem = async (req, res, next) => {
 // METHOD GET || GET ALL ORDER DETAILS (USER)
 export const getAllOrders = async (req, res, next) => {
   try {
-    console.log(req.cookies)
     const userId = req.user.id;
     const orders = await Order.find({ userId })
       .populate("addressId")

@@ -16,7 +16,6 @@ export const getWalletDetails = async (req, res) => {
 export const updateWalletbalance = async (req, res) => {
   const userId = req.user.id;
   const { amount, paymentStatus, type,products } = req.body; // 'credit' or 'debit'
-  console.log(req.body)
   if(products){
     const product = products.reduce((acc,p)=>acc.push(p.productName),[])
   } 

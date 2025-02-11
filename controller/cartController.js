@@ -1,5 +1,6 @@
 import Cart from "../model/cartModel.js";
 import Product from "../model/proudctModel.js";
+import { calculateBestOffer } from "../utils/calculateBestOffer.js"; // adjust the path as needed
 
 //--------------------------------------------------------------------------------------------------------
 
@@ -8,7 +9,8 @@ export const getCartProducts = async (req, res, next) => {
   const userId = req.user.id;
 
   try {
-    const cart = await Cart.findOne({ userId }).populate("items.productId");
+    // Populate items with product details
+    let cart = await Cart.findOne({ userId }).populate("items.productId");
 
     if (!cart) {
       return res
@@ -16,17 +18,41 @@ export const getCartProducts = async (req, res, next) => {
         .json({ items: [], totalAmount: 0, message: "Cart is empty" });
     }
 
+    // Filter items that are in stock
     const validItems = cart.items.filter((item) => item.productId.stock > 0);
 
-    const totalAmount = validItems.reduce((sum, item) => {
-      return sum + item.productId.price * item.quantity;
+    // Recalculate pricing for each valid item using calculateBestOffer
+    const updatedItems = await Promise.all(
+      validItems.map(async (item) => {
+        // Calculate best offer for the product in the cart
+        const pricing = await calculateBestOffer(item.productId);
+        // Update the product details with the calculated pricing
+        const updatedProduct = {
+          ...item.productId.toObject(),
+          discountedPrice: pricing.discountedPrice,
+          hasOffer: pricing.hasOffer,
+          offer: pricing.offer,
+        };
+        return {
+          ...item.toObject(),
+          productId: updatedProduct,
+        };
+      })
+    );
+
+    // Calculate the total amount using the discounted price if available
+    const totalAmount = updatedItems.reduce((sum, item) => {
+      const product = item.productId;
+      // Use discounted price if an offer is active; otherwise use original price
+      const priceToUse = product.hasOffer ? product.discountedPrice : product.price;
+      return sum + priceToUse * item.quantity;
     }, 0);
 
     res.status(200).json({
-      items: cart.items,
+      items: updatedItems,
       subtotal: totalAmount,
       message:
-        validItems.length > 0
+        updatedItems.length > 0
           ? "Cart fetched successfully"
           : "No in-stock items in the cart",
     });
@@ -34,6 +60,7 @@ export const getCartProducts = async (req, res, next) => {
     next(error);
   }
 };
+
 // METHOD POST || Add new products to cart for logged-in user
 export const addToCart = async (req, res, next) => {
   const { productId, quantity } = req.body;
@@ -92,7 +119,6 @@ export const addToCart = async (req, res, next) => {
 // METHOD PATCH || Update product quantity in the cart
 export const updateCartQuantity = async (req, res, next) => {
   const { productId, quantity } = req.body;
-  console.log(quantity);
   const userId = req.user.id;
 
   try {
@@ -107,19 +133,24 @@ export const updateCartQuantity = async (req, res, next) => {
     }
 
     const item = cart.items.find(
-      (item) => item.productId._id.toString() === productId
+      (item) => item.productId && item.productId._id.toString() === productId
     );
 
     if (!item) {
       return res.status(404).json({ message: "Product not found in cart" });
     }
 
+    // Update the quantity
     item.quantity = quantity;
 
-    cart.totalAmount = cart.items.reduce(
-      (sum, item) => sum + item.productId.price * item.quantity,
-      0
-    );
+    // Recalculate totalAmount safely:
+    cart.totalAmount = cart.items.reduce((sum, item) => {
+      // Ensure productId exists and that price is a number; otherwise, use 0.
+      const price = item.productId && item.productId.price
+        ? Number(item.productId.price)
+        : 0;
+      return sum + price * item.quantity;
+    }, 0);
 
     await cart.save();
 
@@ -132,6 +163,7 @@ export const updateCartQuantity = async (req, res, next) => {
     next(error);
   }
 };
+
 
 // METHOD DELETE || Remove a product from the cart
 export const removeFromCart = async (req, res, next) => {

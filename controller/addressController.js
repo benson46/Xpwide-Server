@@ -67,7 +67,6 @@ export const addNewAddressDetails = async (req, res, next) => {
 
 //  METHOD PUT || Update an existing address for the logged-in user
 export const updateAddressDetails = async (req, res, next) => {
-  console.log('hi')
   if (!req.user) {
     return res.status(401).json({
       success: false,
@@ -78,7 +77,6 @@ export const updateAddressDetails = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    console.log(req.body)
 
     const updatedAddress = await Address.findOneAndUpdate(
       { _id: id, userId },

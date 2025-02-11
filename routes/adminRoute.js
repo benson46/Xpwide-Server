@@ -37,7 +37,8 @@ import {
 } from "../controller/orderController.js";
 
 import { authenticateAdmin } from "../middleware/authenticateAdmin.js";
-import { addNewCoupon, getAllCoupon } from "../controller/couponController.js";
+import { addNewCoupon, delelteCoupon, getAllCoupon, updateCoupon } from "../controller/couponController.js";
+import { createOffer, deleteOffer, getCategories, getOffers, searchProducts, updateOffer } from "../controller/offerController.js";
 
 const adminRouter = express.Router();
 
@@ -106,5 +107,15 @@ adminRouter
   .route("/coupon")
   .get(authenticateAdmin, getAllCoupon)
   .post(authenticateAdmin, addNewCoupon);
+
+adminRouter.put('/coupon/:id',authenticateAdmin,updateCoupon)
+adminRouter.delete('/coupon/:id',authenticateAdmin,delelteCoupon)
+
+adminRouter.post('/offers/createoffer', authenticateAdmin, createOffer);
+adminRouter.get('/offers/getoffers', authenticateAdmin, getOffers);
+adminRouter.get('/offers/products/search', authenticateAdmin, searchProducts);
+adminRouter.get('/offers/categories', authenticateAdmin, getCategories);
+adminRouter.put('/offers/:id', authenticateAdmin, updateOffer);
+adminRouter.delete('/offers/:id', authenticateAdmin, deleteOffer);
 
 export default adminRouter;

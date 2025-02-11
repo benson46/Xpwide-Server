@@ -2,12 +2,12 @@ import Product from "../model/proudctModel.js";
 import Category from "../model/categoryModel.js";
 import Brand from "../model/brandModel.js";
 import { storeRefreshToken } from "../config/redis.js";
+import { calculateBestOffer } from "../utils/calculateBestOffer.js";
 
 //------------------------------------------ ADMIN CONTROLLES --------------------------------------------------------------
 
 // METHOD GET || Show all products
 export const getAllProducts = async (req, res, next) => {
-  const { isUser } = req.query;
   try {
     const products = await Product.find()
       .populate({
@@ -19,14 +19,19 @@ export const getAllProducts = async (req, res, next) => {
         select: "title",
       });
 
-    if (isUser) {
-      const filteredProducts = products.filter((product) => {
-        return !product.category.isBlocked;
-      });
-      return res.status(200).json({ products: filteredProducts });
-    }
+    const productsWithPricing = await Promise.all(
+      products.map(async (product) => {
+        const pricing = await calculateBestOffer(product);
+        return {
+          ...product.toObject(),
+          originalPrice: pricing.originalPrice,
+          discountedPrice: pricing.discountedPrice,
+          hasOffer: pricing.hasOffer
+        };
+      })
+    );
 
-    res.status(200).json({ products });
+    res.status(200).json({ products: productsWithPricing });
   } catch (error) {
     next(error);
   }
@@ -210,14 +215,25 @@ export const getProductDetails = async (req, res, next) => {
       .populate({
         path: "category",
         select: "title",
+      })
+      .populate({
+        path: "activeOffer", 
+        select: "name value endDate", 
       });
 
     if (!product) {
-      res.status(400).json({
-        message: "Prooduct Not Found",
+      return res.status(400).json({
+        message: "Product Not Found",
         success: false,
       });
     }
+
+    // Calculate pricing with offers
+    const pricing = await calculateBestOffer(product);
+    // console.log('pricing:',pricing)
+    product.discountedPrice = pricing.discountedPrice;
+    product.hasOffer = pricing.hasOffer;
+    product.offer = pricing.offer
 
     res.status(200).json({
       product,
@@ -228,6 +244,7 @@ export const getProductDetails = async (req, res, next) => {
     next(error);
   }
 };
+
 
 // Method GET || GET CATEGORY BASED PRODUCTS
 export const getProducts = async (req, res, next) => {
@@ -265,6 +282,7 @@ export const getProducts = async (req, res, next) => {
 // METHOD GET || GET FEATURED PRODUCTS
 export const getFeaturedProducts = async (req, res, next) => {
   try {
+    // Fetch all products with the necessary populations
     const products = await Product.find()
       .populate({
         path: "category",
@@ -273,16 +291,37 @@ export const getFeaturedProducts = async (req, res, next) => {
       .populate({
         path: "brand",
         select: "title",
+      })
+      .populate({
+        path: "activeOffer", // Populate the offer details if available
+        select: "name value endDate",
       });
 
-    const filteredProducts = products.filter((product) => {
-      return !product.category.isBlocked && product.isFeatured;
-    });
-    return res.status(200).json({ products: filteredProducts });
+    // Filter to get only featured products that are not blocked by category
+    const filteredProducts = products.filter(
+      (product) => !product.category.isBlocked && product.isFeatured
+    );
+
+    // Apply best offer pricing to each featured product
+    const featuredProductsWithPricing = await Promise.all(
+      filteredProducts.map(async (product) => {
+        const pricing = await calculateBestOffer(product);
+        return {
+          ...product.toObject(),
+          originalPrice: pricing.originalPrice,
+          discountedPrice: pricing.discountedPrice,
+          hasOffer: pricing.hasOffer,
+          offer: pricing.offer,
+        };
+      })
+    );
+
+    res.status(200).json({ products: featuredProductsWithPricing });
   } catch (error) {
     next(error);
   }
 };
+
 
 // METHOD GET || GET RELATED PRODUCTS
 export const getRelatedProducts = async (req, res, next) => {
@@ -293,17 +332,31 @@ export const getRelatedProducts = async (req, res, next) => {
       return res.status(400).json({ message: "Missing categoryId or brandId" });
     }
 
-    const relatedProducts = await Product.find({
+    let relatedProducts = await Product.find({
       category: categoryId,
       brand: brandId,
       isBlocked: false,
       _id: { $ne: productId },
     }).limit(3);
 
+    // Apply best offer pricing to each related product
+    relatedProducts = await Promise.all(
+      relatedProducts.map(async (product) => {
+        const pricing = await calculateBestOffer(product);
+        return {
+          ...product.toObject(),
+          discountedPrice: pricing.discountedPrice,
+          hasOffer: pricing.hasOffer,
+          offer: pricing.offer,
+        };
+      })
+    );
+
     res.status(200).json({ products: relatedProducts });
   } catch (error) {
     next(error);
   }
 };
+
 
 // --------------------------------------------------------------------------------------------------------

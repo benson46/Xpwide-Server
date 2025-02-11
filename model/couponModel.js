@@ -12,7 +12,7 @@ const couponSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: [1, "Discount must be at least 1%"],
-    max: [100, "Discount cannot exceed 100%"],
+    max: [90, "Discount cannot exceed 90%"],
   },
   discountType: {
     type: String,
@@ -28,6 +28,13 @@ const couponSchema = new mongoose.Schema({
     type: Date,
     required: true,
   },
+  startingDate: {
+    type: Date,
+    required: function () {
+      return this.isNew; // Only required when creating a new coupon
+    },
+  },
+  
   usageLimit: {
     type: Number,
     default: null,
@@ -44,7 +51,7 @@ const couponSchema = new mongoose.Schema({
   eligibleCategories: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "categorie",
+      ref: "Category",
     },
   ],
   createdAt: {

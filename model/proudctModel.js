@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const product_schema = new mongoose.Schema({
+const productSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
@@ -20,19 +20,28 @@ const product_schema = new mongoose.Schema({
     ref: "Category",
     required: true,
   },
-  price: {
+  discountedPrice: {
     type: Number,
+    default:0,
     required: true,
-    min: [0, "Price cannot be negative"],
+  },
+  hasOffer: {
+    type: Boolean,
+    default: false,
+  },
+  offer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Offer",
+    default: null,
   },
   stock: {
     type: Number,
     required: true,
     min: [0, "Price cannot be negative"],
   },
-  images:{
-      type:[String],
-      require:true
+  images: {
+    type: [String],
+    require: true,
   },
   tags: {
     type: [String],
@@ -75,8 +84,14 @@ const product_schema = new mongoose.Schema({
       },
     },
   ],
+  // Add this to the existing product schema
+  activeOffer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Offer",
+    default: null,
+  },
 });
 
-const Product = mongoose.model("Product", product_schema);
+const Product = mongoose.model("Product", productSchema);
 
 export default Product;

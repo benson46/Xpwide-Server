@@ -48,6 +48,7 @@ import {
 import Order from "../model/orderModel.js";
 import { getWalletDetails, updateWalletbalance } from "../controller/walletController.js";
 import { addWishlist, getWishlist } from "../controller/wishlistController.js";
+import { applyCoupon } from "../controller/couponController.js";
 
 
 const userRouter = express.Router();
@@ -134,7 +135,10 @@ userRouter.route('/wallet').get(authenticateUser,getWalletDetails).post(authenti
 userRouter.get('/get-wishlist',authenticateUser,getWishlist)
 userRouter.post('/add-wishlist',authenticateUser,addWishlist);
 
-// ----------------------------------------------------
 
+// ---------------- COUPON MANAGEMENT ----------------
+
+userRouter.post("/apply", applyCoupon);
+// ----------------------------------------------------
 userRouter.get('/get-user-info',authenticateUser,getUserSpecificInfo)
 export default userRouter;
