@@ -12,76 +12,60 @@ import {
   generateRefreshToken,
 } from "../utils/jwt/generateToken.js";
 import jwt from "jsonwebtoken";
+// _______________________________________________________________________//
 
-// Set access and refresh tokens in cookies
+// =============================== HELPER FUNCTION ===============================
+//Set access and refresh tokens in cookies
 const setCookies = (res, adminAccessToken, adminRefreshToken) => {
   res.cookie("adminAccessToken", adminAccessToken, {
     httpOnly: true,
     secure: false,
     sameSite: "strict",
-    maxAge: 15 * 60 * 1000, // Expiry time: 15 minutes
+    maxAge: 15 * 60 * 1000, // 15 minutes
   });
   res.cookie("adminRefreshToken", adminRefreshToken, {
     httpOnly: true,
     secure: false,
     sameSite: "strict",
-    maxAge: 7 * 24 * 60 * 60 * 1000, // Expiry time: 7 days
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 };
 
-// --------------------------------------------------------------------------------------------------------
-
-// METHOD POST || Login as admin
+// =============================== ADMIN CONTROLLERS ===============================
+// METHOD POST || ADMIN LOGIN
 export const adminLogin = async (req, res, next) => {
   const { email, password } = req.body;
-
   try {
     if (!email || !password) {
-      return res
-        .status(400)
-        .json({ message: "Email and password are required." });
+      return res.status(400).json({ message: "Email and password are required." });
     }
-
     const admin = await Admin.findOne({ email });
-    if (!admin) {
-      return res.status(404).json({ message: "Invalid Credintials." });
+    if (!admin || !(await comparePassword(password, admin.password))) {
+      return res.status(404).json({ message: "Invalid Credentials." });
     }
-    const match = await comparePassword(password, admin.password);
-    if (match) {
-      const adminData = {
-        id: admin._id,
+    const adminData = { id: admin._id, role: admin.role };
+    const adminAccessToken = generateAccessToken(adminData);
+    const adminRefreshToken = generateRefreshToken(adminData);
+    await storeRefreshToken(admin._id, adminRefreshToken);
+    setCookies(res, adminAccessToken, adminRefreshToken);
+    res.status(200).json({
+      admin: {
+        _id: admin._id,
+        email: admin.email,
         role: admin.role,
-      };
-      const adminAccessToken = generateAccessToken(adminData);
-      const adminRefreshToken = generateRefreshToken(adminData);
-
-      await storeRefreshToken(admin._id, adminRefreshToken);
-      setCookies(res, adminAccessToken, adminRefreshToken);
-
-      res.status(200).json({
-        admin: {
-          _id: admin._id,
-          email: admin.email,
-          role: admin.role,
-          adminAccessToken,
-        },
-      });
-    } else {
-      return res.status(404).json({
-        message: "Invalid Credintials.",
-      });
-    }
+        adminAccessToken,
+      },
+    });
   } catch (error) {
     next(error);
   }
 };
 
-// METHOD POST || Logout admin
+// METHOD POST || ADMIN LOGOUT
 export const adminLogout = async (req, res, next) => {
   try {
-    const adminRefreshToken = req.cookies.adminRefreshToken;
-    const adminId = req.body;
-
+    const { adminRefreshToken } = req.cookies;
+    const { adminId } = req.body;
     if (adminRefreshToken) {
       await storeRefreshToken(adminId, null);
     }
@@ -93,129 +77,95 @@ export const adminLogout = async (req, res, next) => {
   }
 };
 
-// METHOD GET || Get users list
+// METHOD GET || FETCH USERS LIST
 export const getUsersList = async (req, res, next) => {
   const { page = 1, limit = 10 } = req.query;
-  const skip = (page - 1) * limit;
-
   try {
     const totalUsersCount = await User.countDocuments({});
-
     const totalPages = Math.ceil(totalUsersCount / limit);
-
     const usersList = await User.find({}, { password: false })
-      .skip(skip)
+      .skip((page - 1) * limit)
       .limit(limit)
-      .lean(); // Returns plain JavaScript objects instead of Mongoose documents
-
-    for (const user of usersList) {
+      .lean();
+    usersList.forEach((user) => {
       user.createdAt = convertDateToMonthAndYear(user.createdAt);
-    }
-
-    res.status(200).json({
-      success: true,
-      page,
-      totalPages,
-      users: usersList,
     });
+    res.status(200).json({ success: true, page, totalPages, users: usersList });
   } catch (error) {
     next(error);
   }
 };
 
-// METHOD PATCH || Block User
+// METHOD PATCH || BLOCK/UNBLOCK USER
 export const updateUserStatus = async (req, res, next) => {
   const { userId } = req.body;
-
   try {
     const userData = await User.findById(userId);
     if (!userData) {
-      return res
-        .status(400)
-        .json({ success: false, message: "User not found" });
+      return res.status(400).json({ success: false, message: "User not found." });
     }
-
-    const isCurrentlyBlocked = userData.isBlocked;
-    if (isCurrentlyBlocked) {
+    if (userData.isBlocked) {
       await deleteRefreshToken(userId);
     }
-
-    const updatedUserData = await User.findByIdAndUpdate(
-      userData._id,
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
       { $set: { isBlocked: !userData.isBlocked } },
       { new: true }
     );
-
     res.json({
       success: true,
-      message: `User ${updatedUserData.isBlocked ? "blocked" : "unblocked"}`,
-      updatedUserData,
+      message: `User ${updatedUser.isBlocked ? "blocked" : "unblocked"}`,
+      updatedUser,
     });
   } catch (error) {
     next(error);
   }
 };
 
-// METHDOD POST  || Refresh Access Token for admin
+// METHOD POST || REFRESH ADMIN ACCESS TOKEN
 export const refreshAdminAccessToken = async (req, res, next) => {
   try {
     const { adminRefreshToken } = req.cookies;
-
     if (!adminRefreshToken) {
       return res.status(403).json({ message: "Refresh token is missing." });
     }
-
-    const decode = await jwt.verify(
+    const decoded = jwt.verify(
       adminRefreshToken,
       process.env.REFRESH_TOKEN_SECRET
     );
-
-    const refreshTokenFromRedis = await getRefreshToken(decode.id);
-    const cleanedRedisToken = refreshTokenFromRedis.replace(/^"|"$/g, ""); // Remove surrounding quotes
-
-    if (!cleanedRedisToken || adminRefreshToken !== cleanedRedisToken) {
+    const storedToken = (await getRefreshToken(decoded.id)).replace(/^"|"$/g, "");
+    if (!storedToken || adminRefreshToken !== storedToken) {
       return res.status(403).json({ message: "Invalid or mismatched token." });
     }
-
-    const newAccessToken = generateAccessToken(decode);
-    res.status(200).json({
-      adminAccessToken: newAccessToken,
-    });
+    res.status(200).json({ adminAccessToken: generateAccessToken(decoded) });
   } catch (error) {
     next(error);
   }
 };
 
-// --------------------------------------------------------------------------------------------------------
+// =============================== DEVELOPMENT USED FUNCTION ===============================
 
-// METHOD POST || Signup as admin(devlopment mode only use)
+// METHOD POST || Signup as admin (Development mode only)
 /* export const adminSignup = async (req, res) => {
-	const { email, password } = req.body;
-
-	try {
-		if (!email || !password) {
-			return res
-				.status(400)
-				.json({ message: "Email and password are required." });
-		}
-
-		const existingAdmin = await Admin.findOne({ email });
-		if (existingAdmin) {
-			return res.status(409).json({ message: "Admin already exists." });
-		}
-
-		const hashedPassword = await hashPassword(password);
-		const admin = await Admin.create({ email, password: hashedPassword });
-
-    const accessToken = generateAccessToken(admin._id,admin.role)
-		const  refreshToken = generateRefreshToken(admin._id,admin.role);
-		await storeRefreshToken(admin._id, refreshToken);
-		setCookies(res, accessToken, refreshToken);
-
-		res.status(201).json({
-			admin: { _id: admin._id, email: admin.email, role: admin.role },
-		});
-	} catch (error) {
-		res.status(500).json({ message: error.message });
-	}
+  const { email, password } = req.body;
+  try {
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required." });
+    }
+    const existingAdmin = await Admin.findOne({ email });
+    if (existingAdmin) {
+      return res.status(409).json({ message: "Admin already exists." });
+    }
+    const hashedPassword = await hashPassword(password);
+    const admin = await Admin.create({ email, password: hashedPassword });
+    const accessToken = generateAccessToken(admin._id, admin.role);
+    const refreshToken = generateRefreshToken(admin._id, admin.role);
+    await storeRefreshToken(admin._id, refreshToken);
+    setCookies(res, accessToken, refreshToken);
+    res.status(201).json({
+      admin: { _id: admin._id, email: admin.email, role: admin.role },
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 }; */

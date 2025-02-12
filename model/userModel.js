@@ -12,9 +12,9 @@ const userSchema = new mongoose.Schema(
     email: {
       type: String,
       required: [true, "Email is required"],
-      unique: true, // Ensures email is unique across all users
-      lowercase: true, // Converts email to lowercase for consistency
-      trim: true, // Removes any leading or trailing spaces from the email
+      unique: true, 
+      lowercase: true,
+      trim: true,
     },
     phoneNumber: {
       type: String,

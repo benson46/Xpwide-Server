@@ -31,10 +31,10 @@ import {
   updateAddressDetails,
 } from "../controller/addressController.js";
 import {
-  addToCart,
   getCartProducts,
+  addToCart,
+  modifyCartQuantity,
   removeFromCart,
-  updateCartQuantity,
 } from "../controller/cartController.js";
 import {
   checkoutOrderSuccess,
@@ -45,37 +45,38 @@ import {
   getAllOrders,
   initiateReturn,
 } from "../controller/orderController.js";
-import Order from "../model/orderModel.js";
 import { getWalletDetails, updateWalletbalance } from "../controller/walletController.js";
 import { addWishlist, getWishlist } from "../controller/wishlistController.js";
 import { applyCoupon } from "../controller/couponController.js";
 
-
 const userRouter = express.Router();
 
-// ---------------- USER AUTH ----------------
+/* ---------------------------- USER AUTH ---------------------------- */
 
 userRouter.post("/login", login);
+userRouter.post("/logout", logout);
 userRouter.post("/send-otp", sendOtp);
 userRouter.post("/forgot-password-otp", forgetPasswordOtp);
 userRouter.post("/resend-otp", resendOTP);
 userRouter.post("/verify-otp", verifyOTP);
 userRouter.post("/reset-password", resetPassword);
-userRouter.post("/logout", logout);
 userRouter.post("/refresh-token", refreshUserAccessToken);
 
-// ---------------- CATEGORY MANAGEMENT ----------------
+/* ---------------------------- CATEGORY MANAGEMENT ---------------------------- */
 
 userRouter.get("/category", isBlockedUser, getAllCategories);
 
-// ---------------- PRODUCT MANAGEMENT ----------------
+/* ---------------------------- PRODUCT MANAGEMENT ---------------------------- */
 
-userRouter.get("/product", isBlockedUser, getProductDetails);
-userRouter.get("/products", isBlockedUser, getProducts);
-userRouter.get("/featured-products", isBlockedUser, getFeaturedProducts);
-userRouter.get("/related-products", isBlockedUser, getRelatedProducts);
+userRouter
+  .route("/products")
+  .get(isBlockedUser, getProducts);
 
-// ---------------- PROFILE MANAGEMENT ----------------
+userRouter.get("/product", getProductDetails);
+userRouter.get("/featured-products", getFeaturedProducts);
+userRouter.get("/related-products", getRelatedProducts);
+
+/* ---------------------------- PROFILE MANAGEMENT ---------------------------- */
 
 userRouter
   .route("/profile")
@@ -84,7 +85,7 @@ userRouter
 
 userRouter.post("/change-password", isBlockedUser, changePassword);
 
-// ---------------- ADDRESS MANAGEMENT ----------------
+/* ---------------------------- ADDRESS MANAGEMENT ---------------------------- */
 
 userRouter
   .route("/address")
@@ -96,16 +97,16 @@ userRouter
   .put(authenticateUser, isBlockedUser, updateAddressDetails)
   .delete(authenticateUser, isBlockedUser, deleteAddressDetails);
 
-// ---------------- CART MANAGEMENT ----------------
+/* ---------------------------- CART MANAGEMENT ---------------------------- */
 
 userRouter
   .route("/cart")
   .get(authenticateUser, isBlockedUser, getCartProducts)
   .post(authenticateUser, isBlockedUser, addToCart)
-  .patch(authenticateUser, isBlockedUser, updateCartQuantity)
+  .patch(authenticateUser, isBlockedUser, modifyCartQuantity)
   .delete(authenticateUser, isBlockedUser, removeFromCart);
 
-// ---------------- CHECKOUT ROUTES ----------------
+/* ---------------------------- CHECKOUT ---------------------------- */
 
 userRouter.get("/checkout", authenticateUser, isBlockedUser, getCartItems);
 userRouter.post(
@@ -115,7 +116,7 @@ userRouter.post(
   checkoutOrderSuccess
 );
 
-// ---------------- ORDER MANAGEMENT ----------------
+/* ---------------------------- ORDER MANAGEMENT ---------------------------- */
 
 userRouter.get("/orders", authenticateUser, isBlockedUser, getAllOrders);
 userRouter.patch(
@@ -123,22 +124,26 @@ userRouter.patch(
   authenticateUser,
   cancelOrderItem
 );
-
 userRouter.patch("/orders/:orderId/return/:productId", initiateReturn);
 
-// ---------------- Wallet MANAGEMENT ----------------
+/* ---------------------------- WALLET MANAGEMENT ---------------------------- */
 
-userRouter.route('/wallet').get(authenticateUser,getWalletDetails).post(authenticateUser,updateWalletbalance)
+userRouter
+  .route('/wallet')
+  .get(authenticateUser, getWalletDetails)
+  .post(authenticateUser, updateWalletbalance);
 
-// ---------------- Wishlist MANAGEMENT ----------------
+/* ---------------------------- WISHLIST MANAGEMENT ---------------------------- */
 
-userRouter.get('/get-wishlist',authenticateUser,getWishlist)
-userRouter.post('/add-wishlist',authenticateUser,addWishlist);
+userRouter.get('/get-wishlist', authenticateUser, getWishlist);
+userRouter.post('/add-wishlist', authenticateUser, addWishlist);
 
-
-// ---------------- COUPON MANAGEMENT ----------------
+/* ---------------------------- COUPON MANAGEMENT ---------------------------- */
 
 userRouter.post("/apply", applyCoupon);
-// ----------------------------------------------------
-userRouter.get('/get-user-info',authenticateUser,getUserSpecificInfo)
+
+/* ---------------------------- USER INFO ---------------------------- */
+
+userRouter.get('/get-user-info', authenticateUser, getUserSpecificInfo);
+
 export default userRouter;

@@ -14,7 +14,7 @@ export const generateAccessToken = (user) => {
 
 // Function to generate a refresh token
 export const generateRefreshToken = (user) => {
-  const payload = {
+  const payload = { 
     id: user.id, 
     role: user.role,
   };
@@ -23,8 +23,6 @@ export const generateRefreshToken = (user) => {
 
   return jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, { expiresIn });
 };
-
-// Function to generate a new access token from refresh token
 
 
 

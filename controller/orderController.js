@@ -1,10 +1,11 @@
+import mongoose from "mongoose";
 import Order from "../model/orderModel.js";
-import Product from "../model/proudctModel.js";
+import Product from "../model/productModel.js";
 import Wallet from "../model/walletModel.js";  
+// _______________________________________________________________________//
 
-//------------------------------------------ ADMIN CONTROLS --------------------------------------------------------------
-
-// METHOD GET || GET ALL ORDER DETAILS
+// =========================== ADMIN CONTROLLERS ===========================
+// METHOD GET || Get all orders with detailed information
 export const getAllOrdersAdmin = async (req, res, next) => {
   try {
     const orders = await Order.find()
@@ -38,12 +39,14 @@ export const getAllOrdersAdmin = async (req, res, next) => {
   }
 };
 
-// METHOD PUT || UPDATE ORDER DETAILS - SHIPPED, DELIVERED, ETC..
+// METHOD PUT || Update order item status
 export const updateOrderStatus = async (req, res, next) => {
   try {
-    const { orderId } = req.params;
-    const { productId, status } = req.body;
+    const { orderId, productId } = req.params;
+    const { status } = req.body;
+    console.log(req.params);
     const validStatuses = ["Pending", "Shipped", "Delivered", "Cancelled"];
+
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
@@ -51,11 +54,14 @@ export const updateOrderStatus = async (req, res, next) => {
     const order = await Order.findById(orderId);
     if (!order) return res.status(404).json({ message: "Order not found" });
 
+    // Convert productId to ObjectId before comparing
     const productIndex = order.products.findIndex(
-      (p) => p.productId.toString() === productId
+      (p) => p.productId.toString() === new mongoose.Types.ObjectId(productId).toString()
     );
-    if (productIndex === -1)
+
+    if (productIndex === -1) {
       return res.status(404).json({ message: "Product not found in order" });
+    }
 
     order.products[productIndex].status = status;
 
@@ -75,12 +81,11 @@ export const updateOrderStatus = async (req, res, next) => {
     next(error);
   }
 };
-
-// METHOD PATCH || APPROVE/RETURN REJECT (ADMIN SIDE)
+// METHOD PATCH || Handle product return requests
 export const handleReturnRequest = async (req, res, next) => {
   try {
     const { orderId, productId } = req.params;
-    const { action } = req.body; // "approve" or "reject"
+    const { action } = req.body;
 
     const order = await Order.findById(orderId);
     if (!order) return res.status(404).json({ message: "Order not found" });
@@ -89,23 +94,20 @@ export const handleReturnRequest = async (req, res, next) => {
       (p) => p.productId.toString() === productId.toString()
     );
 
-    if (productIndex === -1)
+    if (productIndex === -1) {
       return res.status(404).json({ message: "Product not found in order" });
+    }
 
     if (order.products[productIndex].status !== "Return Pending") {
-      return res
-        .status(400)
-        .json({ message: "Product is not in Return Pending state" });
+      return res.status(400).json({ message: "Product not in return pending state" });
     }
 
     if (action === "approve") {
       order.products[productIndex].status = "Return Approved";
-
-      // Update Wallet: Credit the user's wallet with the return amount
       const product = order.products[productIndex];
       const totalAmount = product.price * product.quantity;
 
-      const wallet = await Wallet.findOneAndUpdate(
+      await Wallet.findOneAndUpdate(
         { user: order.userId },
         {
           $inc: { balance: totalAmount },
@@ -134,68 +136,8 @@ export const handleReturnRequest = async (req, res, next) => {
   }
 };
 
-//----------------------------------------- COMMON CONTROLS ---------------------------------------------------------------
-
-// METHOD PATCH || CANCEL PRODUCT(for both admin and user)
-export const cancelOrderItem = async (req, res, next) => {
-  try {
-    const { orderId, productId } = req.params;
-
-    const order = await Order.findById(orderId).populate("products.productId"); 
-    if (!order) return res.status(404).json({ message: "Order not found" });
-
-
-    // Find the product within the order
-    const product = order.products.find(
-      (p) => p.productId && p.productId._id.toString() === productId
-    );
-
-    if (!product) {
-      return res.status(404).json({ message: "Product not found in order" });
-    }
-
-    if (product.status === "Cancelled") {
-      return res.status(400).json({ message: "Product is already cancelled" });
-    }
-
-    // Update the product status to "Cancelled"
-    product.status = "Cancelled";
-
-    // Check if all products are cancelled
-    if (order.products.every((p) => p.status === "Cancelled")) {
-      order.status = "Cancelled";
-    }
-
-    // Update wallet if the product is cancelled
-    const userWallet = await Wallet.findOne({ user: order.userId });
-    if (!userWallet) {
-      return res.status(404).json({ message: "User wallet not found" });
-    }
-
-    // Ensure price calculation is correct
-    const productPrice = product.productId.price * product.quantity;
-    userWallet.balance += productPrice;
-
-    await userWallet.save(); // Save updated wallet
-
-    // Save the order after cancellation
-    await order.save();
-
-    res.json({
-      message: "Product cancelled successfully and amount added to wallet",
-      order,
-      userWallet,
-    });
-  } catch (error) {
-    console.error("Error cancelling product:", error);
-    next(error);
-  }
-};
-
-
-//----------------------------------------- USER CONTROLS ---------------------------------------------------------------
-
-// METHOD GET || GET ALL ORDER DETAILS (USER)
+// =========================== USER CONTROLLERS ============================
+// METHOD GET || Get user's order history
 export const getAllOrders = async (req, res, next) => {
   try {
     const userId = req.user.id;
@@ -237,7 +179,7 @@ export const getAllOrders = async (req, res, next) => {
   }
 };
 
-// METHOD PATCH || INITIATE RETURN REQUEST (USER SIDE)
+// METHOD PATCH || Initiate product return process
 export const initiateReturn = async (req, res, next) => {
   try {
     const { orderId, productId } = req.params;
@@ -248,13 +190,13 @@ export const initiateReturn = async (req, res, next) => {
     const productIndex = order.products.findIndex(
       (p) => p.productId.toString() === productId
     );
-    if (productIndex === -1)
+    
+    if (productIndex === -1) {
       return res.status(404).json({ message: "Product not found in order" });
+    }
 
     if (order.products[productIndex].status !== "Delivered") {
-      return res
-        .status(400)
-        .json({ message: "Product must be delivered to initiate return" });
+      return res.status(400).json({ message: "Product must be delivered to initiate return" });
     }
 
     order.products[productIndex].status = "Return Pending";
@@ -266,3 +208,57 @@ export const initiateReturn = async (req, res, next) => {
     next(error);
   }
 };
+
+// =========================== COMMON CONTROLLERS ==========================
+// METHOD PATCH || Cancel order item
+export const cancelOrderItem = async (req, res, next) => {
+  try {
+    const { orderId, productId } = req.params;
+
+    const order = await Order.findById(orderId).populate("products.productId");
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    const product = order.products.find(
+      (p) => p.productId && p.productId._id.toString() === productId
+    );
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found in order" });
+    }
+
+    if (product.status === "Cancelled") {
+      return res.status(400).json({ message: "Product already cancelled" });
+    }
+
+    product.status = "Cancelled";
+
+    if (order.products.every((p) => p.status === "Cancelled")) {
+      order.status = "Cancelled";
+    }
+
+    const userWallet = await Wallet.findOne({ user: order.userId });
+    if (!userWallet) {
+      return res.status(404).json({ message: "User wallet not found" });
+    }
+
+    const refundAmount = product.productId.price * product.quantity;
+    userWallet.balance += refundAmount;
+    await userWallet.save();
+    await order.save();
+
+    await SalesReport.updateOne(
+      { orderId },
+      { $set: { deliveryStatus: "Cancelled" } }
+    );
+
+    res.json({
+      message: "Product cancelled and amount added to wallet",
+      order,
+      userWallet,
+    });
+  } catch (error) {
+    console.error("Error cancelling product:", error);
+    next(error);
+  }
+};
+// _______________________________________________________________________//

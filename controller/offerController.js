@@ -1,14 +1,15 @@
 import mongoose from "mongoose";
 import { calculateBestOffer } from "../utils/calculateBestOffer.js";
-import Product from "../model/proudctModel.js";
+import Product from "../model/productModel.js";
 import Offer from "../model/offerModel.js";
 import Category from "../model/categoryModel.js";
+// _______________________________________________________________________//
 
-export const createOffer = async (req, res) => {
+// =========================== ADMIN CONTROLLERS ===========================
+// METHOD POST || Create a new offer
+export const createOffer = async (req, res, next) => {
   try {
     const { offerType, name, value, endDate, product, category } = req.body;
-
-    // Validate required fields
     if (
       !name ||
       !value ||
@@ -25,7 +26,6 @@ export const createOffer = async (req, res) => {
       });
     }
 
-    // Validate discount range (1-80%)
     if (isNaN(value) || value < 1 || value > 80) {
       return res.status(400).json({
         success: false,
@@ -33,7 +33,6 @@ export const createOffer = async (req, res) => {
       });
     }
 
-    // Check for duplicate offer names
     const existingOffer = await Offer.findOne({ name });
     if (existingOffer) {
       return res.status(400).json({
@@ -44,7 +43,9 @@ export const createOffer = async (req, res) => {
 
     // Ensure product or category doesn't already have an active offer
     if (offerType === "product") {
-      const productWithOffer = await Product.findById(product).select("activeOffer");
+      const productWithOffer = await Product.findById(product).select(
+        "activeOffer"
+      );
       if (productWithOffer?.activeOffer) {
         return res.status(400).json({
           success: false,
@@ -52,7 +53,9 @@ export const createOffer = async (req, res) => {
         });
       }
     } else if (offerType === "category") {
-      const categoryWithOffer = await Category.findById(category).select("activeOffer");
+      const categoryWithOffer = await Category.findById(category).select(
+        "activeOffer"
+      );
       if (categoryWithOffer?.activeOffer) {
         return res.status(400).json({
           success: false,
@@ -61,7 +64,6 @@ export const createOffer = async (req, res) => {
       }
     }
 
-    // Create Offer
     const offer = await Offer.create({
       offerType,
       name,
@@ -72,7 +74,6 @@ export const createOffer = async (req, res) => {
     });
 
     if (offerType === "product") {
-      // Assign offer to product and recalculate discount
       await Product.findByIdAndUpdate(product, {
         activeOffer: offer._id,
         hasOffer: true,
@@ -85,7 +86,6 @@ export const createOffer = async (req, res) => {
         discountedPrice: bestOfferData.discountedPrice,
       });
     } else {
-      // If it's a category offer, update all products in the category
       const productsInCategory = await Product.find({ category });
 
       for (const prod of productsInCategory) {
@@ -101,31 +101,33 @@ export const createOffer = async (req, res) => {
       data: offer,
     });
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    next(error);
   }
 };
 
-
-
-
-export const getOffers = async (req, res) => {
+// METHOD GET || Get all offers
+export const getOffers = async (req, res, next) => {
   const { type } = req.query;
-  const filter = type ? { offerType: type } : {};
+  try {
+    const filter = type ? { offerType: type } : {};
 
-  const offers = await Offer.find(filter)
-    .populate("product", "name")
-    .populate("category", "title");
+    const offers = await Offer.find(filter)
+      .populate("product", "name")
+      .populate("category", "title");
 
-  res.json({
-    success: true,
-    data: offers,
-  });
+    res.json({
+      success: true,
+      data: offers,
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-export const updateOffer = async (req, res) => {
+// =========================== COMMON CONTROLLERS ===========================
+
+// METHOD PUT || Update an offer
+export const updateOffer = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { offerType, name, value, endDate, product, category } = req.body;
@@ -148,38 +150,6 @@ export const updateOffer = async (req, res) => {
       });
     }
 
-    const existingOfferData = await Offer.findById(id);
-    if (!existingOfferData) {
-      return res.status(404).json({
-        success: false,
-        error: 'Offer not found'
-      });
-    }
-
-    if (offerType === 'product' && product !== existingOfferData.product?.toString()) {
-      const productWithOffer = await Product.findById(product).select('activeOffer');
-      if (productWithOffer?.activeOffer) {
-        return res.status(400).json({
-          success: false,
-          error: 'The selected product already has an active offer'
-        });
-      }
-    } else if (offerType === 'category' && category !== existingOfferData.category?.toString()) {
-      const categoryWithOffer = await Category.findById(category).select('activeOffer');
-      if (categoryWithOffer?.activeOffer) {
-        return res.status(400).json({
-          success: false,
-          error: 'The selected category already has an active offer'
-        });
-      }
-    }
-
-    if (existingOfferData.offerType === 'product') {
-      await Product.findByIdAndUpdate(existingOfferData.product, { activeOffer: null });
-    } else {
-      await Category.findByIdAndUpdate(existingOfferData.category, { activeOffer: null });
-    }
-
     const updatedOffer = await Offer.findByIdAndUpdate(
       id,
       {
@@ -187,32 +157,31 @@ export const updateOffer = async (req, res) => {
         name,
         value,
         endDate,
-        [offerType]: offerType === 'product' ? product : category
+        [offerType]: offerType === "product" ? product : category,
       },
       { new: true }
     );
 
-    if (offerType === 'product') {
-      await Product.findByIdAndUpdate(product, { activeOffer: id });
-    } else {
-      await Category.findByIdAndUpdate(category, { activeOffer: id });
-    }
-
     return res.status(200).json({
       success: true,
-      data: updatedOffer
+      data: updatedOffer,
     });
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    next(error);
   }
 };
 
-export const deleteOffer = async (req, res) => {
+// METHOD DELETE || Delete an offer
+export const deleteOffer = async (req, res, next) => {
   try {
     const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid offer ID format",
+      });
+    }
 
     const offer = await Offer.findById(id);
     if (!offer) {
@@ -222,63 +191,13 @@ export const deleteOffer = async (req, res) => {
       });
     }
 
-    if (offer.offerType === "product") {
-      await Product.findByIdAndUpdate(offer.product, { activeOffer: null });
-    } else if (offer.offerType === "category") {
-      await Category.findByIdAndUpdate(offer.category, { activeOffer: null });
-    }
-
     await Offer.findByIdAndDelete(id);
-
-    return res.json({
+    return res.status(200).json({
       success: true,
       message: "Offer deleted successfully",
     });
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    next(error);
   }
 };
-
-export const searchProducts = async (req, res) => {
-  try {
-    const { query } = req.query;
-    if (!query) {
-      return res.status(400).json({
-        success: false,
-        error: "Search query required",
-      });
-    }
-
-    const products = await Product.find({
-      name: { $regex: query, $options: "i" },
-    }).select("_id name");
-
-    res.json({
-      success: true,
-      data: products,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  }
-};
-
-export const getCategories = async (req, res) => {
-  try {
-    const categories = await Category.find().select("_id title");
-    res.json({
-      success: true,
-      data: categories,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  }
-};
+// _______________________________________________________________________//

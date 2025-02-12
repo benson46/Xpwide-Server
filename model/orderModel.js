@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import SalesReport from "./salesModel.js"; // Import SalesReport model
 
 const orderSchema = new mongoose.Schema(
   {
@@ -52,14 +53,34 @@ const orderSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
-
-    createdAt: {
+    status: {
+      type: String,
+      enum: ["Pending", "Shipped", "Delivered", "Cancelled"],
+      default: "Pending",
+    },
+    deliveryDate: {
       type: Date,
-      default: Date.now,
+      default: null,
     },
   },
   { timestamps: true }
 );
+
+// Mongoose Pre-Save Hook to Sync Order Status with SalesReport
+orderSchema.pre("save", async function (next) {
+  if (this.isModified("status")) {
+    try {
+      await SalesReport.updateOne(
+        { orderId: this._id.toString() },
+        { $set: { deliveryStatus: this.status } }
+      );
+    } catch (error) {
+      console.error("Error updating SalesReport delivery status:", error);
+      return next(error);
+    }
+  }
+  next();
+});
 
 const Order = mongoose.model("Order", orderSchema);
 export default Order;

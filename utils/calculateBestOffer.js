@@ -40,6 +40,7 @@ const productOffer = await Offer.findOne({
     
     // Choose the offer that results in the lower price
     if (productDiscountedPrice < finalPrice) {
+      console.log(productDiscountedPrice)
       finalPrice = productDiscountedPrice;
       bestOffer = productOffer;
     }

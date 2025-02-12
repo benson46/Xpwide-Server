@@ -16,8 +16,9 @@ import {
   generateRefreshToken,
 } from "../utils/jwt/generateToken.js";
 import jwt from "jsonwebtoken";
-import { json } from "express";
+// _______________________________________________________________________//
 
+// =============================== HELPER FUNCTION ===============================
 // Set access and refresh tokens in cookies
 const setCookies = (res, accessToken, refreshToken) => {
   res.cookie("accessToken", accessToken, {
@@ -34,8 +35,7 @@ const setCookies = (res, accessToken, refreshToken) => {
   });
 };
 
-// --------------------------------------------------------------------------------------------------------
-
+// =============================== USER CONTROLLERS ===============================
 // METHOD POST || Login as user
 export const login = async (req, res, next) => {
   try {
@@ -205,7 +205,6 @@ export const verifyOTP = async (req, res, next) => {
   }
 };
 
-
 // METHOD POST || Reset Password
 export const resetPassword = async (req, res, next) => {
   try {
@@ -282,14 +281,15 @@ export const logout = async (req, res, next) => {
   }
 };
 
-export const getUserSpecificInfo = async (req, res) => {
-  const userData = await User.findById(req.user.id);
-
-  res.json({ success: true, userData });
+export const getUserSpecificInfo = async (req, res,next) => {
+  try {
+    const userData = await User.findById(req.user.id);
+  
+    res.json({ success: true, userData });
+  } catch (error) {
+    next(error)
+  }
 };
-
-
-// --------------------------------------------------------------------------------------------------------
 
 // Method Post || Refresh Access Token
 export const refreshUserAccessToken = async (req, res, next) => {
