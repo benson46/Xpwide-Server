@@ -49,7 +49,7 @@ const getDateFilter = (period, startDate, endDate) => {
 
 // =============================== ADMIN CONTROLLERS ===============================
 // METHOD GET || SALES REPORT
-export const getSalesReport = async (req, res,next) => {
+export const getSalesReport = async (req, res, next) => {
   const {
     period = "daily",
     startDate,
@@ -77,8 +77,6 @@ export const getSalesReport = async (req, res,next) => {
         .limit(Number(limit))
         .lean(),
     ]);
-
-    console.log(reports);
 
     const summary = {
       totalSales: reports.length,
@@ -115,136 +113,172 @@ export const getSalesReport = async (req, res,next) => {
     });
   } catch (error) {
     console.error("Sales report error:", error);
-    next(error)
+    next(error);
   }
 };
 
 // METHOD GET || DOWLOAD SALES REPORT PDF
-export const downloadPDFReport = async (req, res,next) => {
+export const downloadPDFReport = async (req, res, next) => {
   try {
     const { period, startDate, endDate } = req.query;
     const filter = getDateFilter(period, startDate, endDate);
+    
+    // Fix: Corrected the typo from "prodcut" to "product"
     const reports = await SalesReport.find(filter)
+      .populate({
+        path: "product.productId",
+        select: "name price",
+      })
       .populate({
         path: "customer",
         select: "firstName",
       })
       .lean();
+
+    // Create PDF document using pdfkit-table
     const doc = new PDFDocument({ margin: 20, size: "A4" });
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      "attachment; filename=salesReport.pdf"
-    );
+    res.setHeader("Content-Disposition", "attachment; filename=salesReport.pdf");
     doc.pipe(res);
-    doc.fontSize(18).text("Sales Report", { align: "center" }).moveDown();
+
+    // Title and Date Range
+    doc.fontSize(18)
+       .text("Sales Report", { align: "center" })
+       .moveDown();
     if (startDate && endDate) {
-      doc.text(`From: ${startDate} To: ${endDate}`, { align: "center" });
+      const formattedStart = new Date(startDate).toLocaleDateString();
+      const formattedEnd = new Date(endDate).toLocaleDateString();
+      doc.fontSize(12)
+         .text(`From: ${formattedStart} To: ${formattedEnd}`, { align: "center" })
+         .moveDown();
     }
+
+    // Summary data (Total Orders & Total Amount)
+    const totalOrders = reports.length;
     const totalAmount = reports.reduce(
       (sum, report) => sum + report.finalAmount,
       0
     );
-    doc
-      .moveDown()
-      .fontSize(12)
-      .text(`Total Orders: ${reports.length}`)
-      .text(`Total Amount: $${totalAmount.toFixed(2)}`)
-      .moveDown();
+    doc.fontSize(12)
+       .text(`Total Orders: ${totalOrders}`)
+       .text(`Total Amount: $${totalAmount.toFixed(2)}`)
+       .moveDown();
+
+    // Build table rows – one row per product entry (matching Excel export)
+    const rows = [];
+    reports.forEach((report) => {
+      report.product.forEach((product) => {
+        rows.push([
+          new Date(report.orderDate).toLocaleDateString(), // Order Date
+          report.customer?.firstName || "N/A",              // Customer
+          product.productId?.name || product.productName,   // Product Name
+          product.quantity,                                 // Quantity
+          `$${product.unitPrice.toFixed(2)}`,               // Unit Price
+          `$${product.discount.toFixed(2)}`,                // Discount
+          `$${product.totalPrice.toFixed(2)}`,              // Total Price
+          report.paymentMethod,                             // Payment Method
+          report.deliveryStatus                             // Status
+        ]);
+      });
+    });
+
+    // Define table structure matching the Excel headers
     const table = {
       headers: [
-        "Date",
+        "Order Date",
         "Customer",
-        "Products (Name, Unit Price, Qty, Total Price)",
-        "Final Amount",
+        "Product Name",
+        "Quantity",
+        "Unit Price",
+        "Discount",
+        "Total Price",
         "Payment Method",
-        "Status",
+        "Status"
       ],
-      rows: reports.map((report) => [
-        new Date(report.orderDate).toLocaleDateString(),
-        report.customer?.firstName || "N/A",
-        report.product
-          .map(
-            (p) =>
-              `${p.productName} ($${p.unitPrice.toFixed(2)} x${p.quantity})`
-          )
-          .join(",\n"),
-        `$${report.finalAmount.toFixed(2)}`,
-        report.paymentMethod,
-        report.deliveryStatus,
-      ]),
+      rows: rows,
     };
-    await doc.table(table, { prepareRow: (row) => doc.fontSize(8) });
+
+    // Generate the table in the PDF
+    await doc.table(table, {
+      prepareHeader: () => doc.font("Helvetica-Bold").fontSize(10),
+      prepareRow: (row, i) => doc.font("Helvetica").fontSize(8)
+    });
+
     doc.end();
   } catch (error) {
     console.error("PDF generation error:", error);
-   next(error)
+    next(error);
   }
 };
 
+
 // METHOD GET || DOWLOAD SALES REPORT EXCEL
-export const downloadExcelReport = async (req, res,next) => {
+export const downloadExcelReport = async (req, res, next) => {
   try {
     const { period, startDate, endDate } = req.query;
     const filter = getDateFilter(period, startDate, endDate);
+
     const reports = await SalesReport.find(filter)
+      .populate({
+        path: "product.productId",
+        select: "name price",
+      })
       .populate({
         path: "customer",
         select: "firstName",
       })
       .lean();
+
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Sales Report");
 
-    // Add title and summary
-    worksheet.mergeCells("A1:G1");
-    worksheet.getCell("A1").value = "Sales Report";
-    worksheet.getCell("A1").alignment = { horizontal: "center" };
-    worksheet.getCell("A1").font = { bold: true, size: 14 };
-    const totalAmount = reports.reduce(
-      (sum, report) => sum + report.finalAmount,
-      0
-    );
-    worksheet.getRow(2).values = [
-      `Total Orders: ${reports.length}`,
-      `Total Amount: $${totalAmount.toFixed(2)}`,
+    // Add headers
+    worksheet.columns = [
+      { header: "Order Date", key: "orderDate", width: 20 },
+      { header: "Customer", key: "customer", width: 20 },
+      { header: "Product Name", key: "productName", width: 25 },
+      { header: "Quantity", key: "quantity", width: 10 },
+      { header: "Unit Price", key: "unitPrice", width: 15 },
+      { header: "Discount", key: "discount", width: 15 },
+      { header: "Total Price", key: "totalPrice", width: 15 },
+      { header: "Payment Method", key: "paymentMethod", width: 20 },
+      { header: "Status", key: "status", width: 15 },
     ];
-    worksheet.addRow([
-      "Order Date",
-      "Customer",
-      "Products (Name, Unit Price, Qty, Total Price)",
-      "Final Amount",
-      "Payment Method",
-      "Delivery Status",
-    ]);
+
+    // Add data rows
     reports.forEach((report) => {
-      worksheet.addRow([
-        new Date(report.orderDate).toLocaleDateString(),
-        report.customer?.firstName || "N/A",
-        report.product
-          .map(
-            (p) =>
-              `${p.productName} ($${p.unitPrice.toFixed(2)} x ${p.quantity})`
-          )
-          .join(", "),
-        `$${report.finalAmount.toFixed(2)}`,
-        report.paymentMethod,
-        report.deliveryStatus,
-      ]);
+      report.product.forEach((product) => {
+        worksheet.addRow({
+          orderDate: new Date(report.orderDate).toLocaleDateString(),
+          customer: report.customer?.firstName || "N/A",
+          productName: product.productId?.name || "N/A",
+          quantity: product.quantity,
+          unitPrice: product.unitPrice,
+          discount: product.discount,
+          totalPrice: product.totalPrice,
+          paymentMethod: report.paymentMethod,
+          status: report.deliveryStatus,
+        });
+      });
     });
+
+    // Set headers
     res.setHeader(
       "Content-Type",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     );
     res.setHeader(
       "Content-Disposition",
-      "attachment; filename=salesReport.xlsx"
+      "attachment; filename=sales_report.xlsx"
     );
+
+    // Send file
     await workbook.xlsx.write(res);
     res.end();
   } catch (error) {
-    console.error("Excel generation error:", error);
-    next(error)
+    console.error("Excel export error:", error);
+    next(error);
   }
 };
+
 // _______________________________________________________________________//

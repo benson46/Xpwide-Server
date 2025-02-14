@@ -3,8 +3,6 @@ import User from "../model/userModel.js";
 export const isBlockedUser = async (req, res, next) => {
   try {
     const email = req.headers["user-email"];
-    console.log("Email:", email);
-
     if (email == undefined || !email) {
       return next();
     }

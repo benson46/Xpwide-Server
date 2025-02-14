@@ -11,6 +11,7 @@ import userRouter from "./routes/userRoutes.js";
 import client from "./config/redis.js";
 import googleRoute from "./routes/googleRoute.js";
 import errorHandler from "./middleware/errorHandler.js";
+import notFoundHandler from "./middleware/notFoundHandler.js";
 
 dotenv.config();
 
@@ -21,39 +22,40 @@ const PORT = process.env.PORT || 5000;
 client.on("connect", () => console.log("Connected to Redis"));
 client.on("error", (error) => console.log("Redis connection error", error));
 
-const logDirectory = path.join("logs"); 
+const logDirectory = path.join("logs");
 if (!fs.existsSync(logDirectory)) {
   fs.mkdirSync(logDirectory);
 }
 
-const accessLogStream = fs.createWriteStream(path.join(logDirectory, "access.log"), { flags: "a" });
-
 if (process.env.NODE_ENV === "production") {
-  app.use(morgan("combined", { stream: accessLogStream })); // Logs to file in production
+  app.use(morgan("combined", { stream: accessLogStream }));
 } else {
-  app.use(morgan("dev")); // Logs to console in development
+  app.use(morgan("dev"));
 }
 
-// Middlewares 
+// Middlewares
 app.use(
   cors({
-    origin: ["http://localhost:5173"], 
-    credentials: true, 
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"], 
-    allowedHeaders: ["Content-Type", "Authorization", "User-Email"], 
+    origin: [process.env.CORS_CLIENT_SIDE],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization", "User-Email"],
   })
 );
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(cookieParser());
 
-// Routes 
+// Routes
 app.use("/api/admin", adminRoute);
 app.use("/api/user", userRouter);
 app.use("/api/google", googleRoute);
 
 // Global error handler
 app.use(errorHandler);
+
+// Not found error handler
+app.use(notFoundHandler);
 
 // Connect to database and start the server
 (async () => {

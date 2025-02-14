@@ -47,7 +47,7 @@ import {
 } from "../controller/orderController.js";
 import { getWalletDetails, updateWalletbalance } from "../controller/walletController.js";
 import { addWishlist, getWishlist } from "../controller/wishlistController.js";
-import { applyCoupon } from "../controller/couponController.js";
+import { applyCoupon, getPublicCoupons } from "../controller/couponController.js";
 
 const userRouter = express.Router();
 
@@ -139,8 +139,8 @@ userRouter.get('/get-wishlist', authenticateUser, getWishlist);
 userRouter.post('/add-wishlist', authenticateUser, addWishlist);
 
 /* ---------------------------- COUPON MANAGEMENT ---------------------------- */
-
-userRouter.post("/apply", applyCoupon);
+userRouter.get('/coupon/public',getPublicCoupons)
+userRouter.post("/coupon/apply", applyCoupon);
 
 /* ---------------------------- USER INFO ---------------------------- */
 

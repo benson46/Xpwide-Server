@@ -6,8 +6,13 @@ import Brand from "../model/brandModel.js";
 // METHOD GET || Fetch all brands
 export const getAllBrands = async (req, res, next) => {
   try {
+    const { page = 1, limit = 10 } = req.query;
+
+    const skip = (page - 1) * limit;
+
+    const totalBrands = await Brand.countDocuments();
     const brands = await Brand.find();
-    res.status(200).json({ success: true, brands });
+    res.status(200).json({ success: true, brands,totalBrands });
   } catch (error) {
     next(error);
   }

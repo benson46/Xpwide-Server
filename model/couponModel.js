@@ -34,7 +34,6 @@ const couponSchema = new mongoose.Schema({
       return this.isNew; // Only required when creating a new coupon
     },
   },
-  
   usageLimit: {
     type: Number,
     default: null,
@@ -47,6 +46,11 @@ const couponSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true,
+  },
+  // New field to control visibility on the user side:
+  isPublic: {
+    type: Boolean,
+    default: false,
   },
   eligibleCategories: [
     {
@@ -71,7 +75,7 @@ couponSchema.index({ expiryDate: 1 }, { expireAfterSeconds: 0 });
 couponSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
   
-  // Check expiration
+  // Check expiration and usage limits
   if (this.expiryDate && this.expiryDate < new Date()) {
     this.isActive = false;
   } else if (this.usageLimit !== null && this.usageCount >= this.usageLimit) {

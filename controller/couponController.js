@@ -27,6 +27,7 @@ export const addNewCoupon = async (req, res, next) => {
     expiryDate,
     usageLimit,
     eligibleCategories,
+    isPublic, // New field from admin
   } = req.body;
 
   if (
@@ -74,6 +75,7 @@ export const addNewCoupon = async (req, res, next) => {
     expiryDate,
     usageLimit,
     eligibleCategories,
+    isPublic: isPublic ?? false, // Set public status (defaults to false)
   });
 
   try {
@@ -122,9 +124,10 @@ export const updateCoupon = async (req, res, next) => {
     await coupon.save();
     res.status(200).json({ message: "Coupon updated successfully", coupon });
   } catch (error) {
-    next(err);
+    next(error);
   }
 };
+
 
 // METHOD DELETE || Delete coupon by ID
 export const deleteCoupon = async (req, res,next) => {
@@ -140,6 +143,16 @@ export const deleteCoupon = async (req, res,next) => {
 };
 
 // =========================== USER CONTROLLERS ===========================
+// METHOD GET || Get all public coupons (for user checkout)
+export const getPublicCoupons = async (req, res, next) => {
+  try {
+    const coupons = await Coupon.find({ isPublic: true, isActive: true });
+    res.json({ coupons });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // METHOD POST || Apply a coupon to cart
 export const applyCoupon = async (req, res,next) => {
   try {

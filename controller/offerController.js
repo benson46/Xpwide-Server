@@ -124,6 +124,19 @@ export const getOffers = async (req, res, next) => {
   }
 };
 
+export const getOfferCategories = async (req, res, next) => {
+  try {
+    // Fetch all categories (you can also add filters if needed)
+    const categories = await Category.find();
+    res.status(200).json({
+      success: true,
+      data: categories,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // =========================== COMMON CONTROLLERS ===========================
 
 // METHOD PUT || Update an offer

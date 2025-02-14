@@ -83,18 +83,62 @@ export const modifyCartQuantity = async (req, res, next) => {
 
 // METHOD DELETE || Remove product from cart
 export const removeFromCart = async (req, res, next) => {
-  const { productId } = req.body;
   const userId = req.user.id;
+  const { productId } = req.body;
   try {
-    const cart = await Cart.findOne({ userId });
-    if (!cart) return res.status(404).json({ success: false, message: "Cart not found." });
-    const itemIndex = cart.items.findIndex((item) => item.productId.toString() === productId);
-    if (itemIndex === -1) return res.status(404).json({ success: false, message: "Product not found in cart." });
+    // Fetch the cart along with product details
+    const cart = await Cart.findOne({ userId }).populate("items.productId");
+    if (!cart) {
+      return res.status(404).json({ success: false, message: "Cart not found." });
+    }
+
+    // Find the index of the item to remove
+    const itemIndex = cart.items.findIndex(
+      (item) => item.productId._id.toString() === productId
+    );
+    if (itemIndex === -1) {
+      return res.status(404).json({ success: false, message: "Product not found in cart." });
+    }
+
+    // Remove the item from the in-memory cart
     cart.items.splice(itemIndex, 1);
+
+    // Update discount pricing for each remaining product
+    const updatedItems = await Promise.all(
+      cart.items.map(async (item) => {
+        const pricing = await calculateBestOffer(item.productId);
+        return {
+          ...item.toObject(),
+          productId: {
+            ...item.productId.toObject(),
+            discountedPrice: pricing.discountedPrice,
+            hasOffer: pricing.hasOffer,
+            offer: pricing.offer,
+          },
+        };
+      })
+    );
+
+    // Calculate the updated total amount using the correct discounted price (if applicable)
+    const totalAmount = updatedItems.reduce((sum, item) => {
+      const priceToUse = item.productId.hasOffer
+        ? item.productId.discountedPrice
+        : item.productId.price;
+      return sum + priceToUse * item.quantity;
+    }, 0);
+
+    // Save the updated cart (if you store any changes)
     await cart.save();
-    res.status(200).json({ success: true, message: "Product removed from cart successfully." });
+
+    res.status(200).json({
+      success: true,
+      message: "Product removed from cart successfully.",
+      totalAmount,
+    });
   } catch (error) {
     next(error);
   }
 };
+
+
 // _______________________________________________________________________//

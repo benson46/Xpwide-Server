@@ -9,15 +9,16 @@ import { calculateBestOffer } from "../utils/calculateBestOffer.js";
 // METHOD GET || Show all products
 export const getAllProducts = async (req, res, next) => {
   try {
+    const { page = 1, limit = 10 } = req.query;
+
+    const skip = (page - 1) * limit;
+
+    const totalProducts = await Product.countDocuments();
     const products = await Product.find()
-      .populate({
-        path: "category",
-        select: "title isBlocked",
-      })
-      .populate({
-        path: "brand",
-        select: "title",
-      });
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate({ path: "category", select: "title isBlocked" })
+      .populate({ path: "brand", select: "title" });
 
     const productsWithPricing = await Promise.all(
       products.map(async (product) => {
@@ -26,12 +27,12 @@ export const getAllProducts = async (req, res, next) => {
           ...product.toObject(),
           originalPrice: pricing.originalPrice,
           discountedPrice: pricing.discountedPrice,
-          hasOffer: pricing.hasOffer
+          hasOffer: pricing.hasOffer,
         };
       })
     );
 
-    res.status(200).json({ products: productsWithPricing });
+    res.status(200).json({ success:true, products: productsWithPricing,totalProducts });
   } catch (error) {
     next(error);
   }
@@ -90,10 +91,9 @@ export const addNewProduct = async (req, res, next) => {
   }
 };
 
-// METHOD PATCH || Soft delete products
+// METHOD PATCH || Block and Unblock products
 export const updateProductStatus = async (req, res, next) => {
-  const { productId } = req.body;
-
+  const { productId } = req.params;
   try {
     const productData = await Product.findById(productId);
 
@@ -128,9 +128,10 @@ export const updateProductStatus = async (req, res, next) => {
 
 // METHOD PUT || Edit a product
 export const editProduct = async (req, res, next) => {
+  const productId = req.params.id;
   const { id, name, brand, category, description, price, stock, images } =
     req.body;
-    console.log(category,brand)
+
   try {
     const [product, categories, brands] = await Promise.all([
       Product.findById(id),
@@ -138,8 +139,7 @@ export const editProduct = async (req, res, next) => {
       Brand.findOne({ _id: brand }),
     ]);
 
-    console.log(categories)
-    console.log(brands)
+;
 
     if (!product) {
       return res.status(404).json({
@@ -164,7 +164,9 @@ export const editProduct = async (req, res, next) => {
     product.images = images || product.images;
     await product.save();
 
-    res.status(200).json({ success: true, message: "Product updated successfully" });
+    res
+      .status(200)
+      .json({ success: true, message: "Product updated successfully" });
   } catch (error) {
     next(error);
   }
@@ -205,11 +207,13 @@ export const getProducts = async (req, res, next) => {
   try {
     const { category } = req.query;
 
+    // Fetch all products with their categories populated
     const products = await Product.find({}).populate({
       path: "category",
       select: "title isBlocked",
     });
 
+    // Filter products based on the category and block status
     const filteredProducts =
       category === "all" || !category
         ? products.filter((product) => !product.category.isBlocked)
@@ -227,11 +231,26 @@ export const getProducts = async (req, res, next) => {
       });
     }
 
-    return res.status(200).json({ products: filteredProducts });
+    // Add pricing details (offer details) to each product
+    const productsWithPricing = await Promise.all(
+      filteredProducts.map(async (product) => {
+        const pricing = await calculateBestOffer(product);
+        return {
+          ...product.toObject(),
+          originalPrice: pricing.originalPrice,
+          discountedPrice: pricing.discountedPrice,
+          hasOffer: pricing.hasOffer,
+          offer: pricing.offer,
+        };
+      })
+    );
+
+    return res.status(200).json({ products: productsWithPricing });
   } catch (error) {
     next(error);
   }
 };
+
 
 // METHOD GET || GET A PRODUCT DETIALS
 export const getProductDetails = async (req, res, next) => {
@@ -248,8 +267,8 @@ export const getProductDetails = async (req, res, next) => {
         select: "title",
       })
       .populate({
-        path: "activeOffer", 
-        select: "name value endDate", 
+        path: "activeOffer",
+        select: "name value endDate",
       });
 
     if (!product) {
@@ -262,7 +281,7 @@ export const getProductDetails = async (req, res, next) => {
     const pricing = await calculateBestOffer(product);
     product.discountedPrice = pricing.discountedPrice;
     product.hasOffer = pricing.hasOffer;
-    product.offer = pricing.offer
+    product.offer = pricing.offer;
 
     res.status(200).json({
       product,
@@ -287,7 +306,7 @@ export const getFeaturedProducts = async (req, res, next) => {
         select: "title",
       })
       .populate({
-        path: "activeOffer", 
+        path: "activeOffer",
         select: "name value endDate",
       });
 
@@ -307,6 +326,7 @@ export const getFeaturedProducts = async (req, res, next) => {
         };
       })
     );
+    
 
     res.status(200).json({ products: featuredProductsWithPricing });
   } catch (error) {

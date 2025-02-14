@@ -46,6 +46,7 @@ import {
 import {
   createOffer,
   deleteOffer,
+  getOfferCategories,
   getOffers,
   // searchProducts,
   updateOffer,
@@ -55,6 +56,7 @@ import {
   downloadPDFReport,
   getSalesReport,
 } from "../controller/salesController.js";
+import { adminSearchController } from "../controller/serachController.js";
 
 const adminRouter = express.Router();
 
@@ -66,9 +68,10 @@ adminRouter.post("/login", adminLogin);
 // METHOD POST || ADMIN LOGOUT
 adminRouter.post("/logout", adminLogout);
 
-// METHOD POST || REFRESH ADMIN ACCESS TOKEN
-adminRouter.post("/refresh-access-token", refreshAdminAccessToken);
+// // METHOD POST || REFRESH ADMIN ACCESS TOKEN
+// adminRouter.post("/refresh-access-token", refreshAdminAccessToken);
 
+adminRouter.get('/search/:entity',authenticateAdmin,adminSearchController)
 /* ---------------------------- USERS MANAGEMENT ---------------------------- */
 
 // METHOD GET || GET USERS LIST
@@ -115,7 +118,8 @@ adminRouter
   .route("/products")
   .get(authenticateAdmin, getAllProducts)
   .post(authenticateAdmin, addNewProduct)
-  .patch(authenticateAdmin, updateProductStatus);
+
+  adminRouter.patch("/products/:productId",authenticateAdmin, updateProductStatus);
 
 // METHOD PUT || EDIT PRODUCT DETAILS
 adminRouter.put("/products/:productId", authenticateAdmin, editProduct);
@@ -174,6 +178,9 @@ adminRouter.post("/offers/createoffer", authenticateAdmin, createOffer);
 
 // METHOD GET || GET ALL OFFERS
 adminRouter.get("/offers/getoffers", authenticateAdmin, getOffers);
+
+// METHOD GET || GET ALL CATEGORIES IN ADDING NEW CATEGORY OFFER
+adminRouter.get('/offers/categories',authenticateAdmin,getOfferCategories)
 
 // // METHOD GET || SEARCH PRODUCTS FOR OFFERS
 // adminRouter.get("/offers/products/search", authenticateAdmin, searchProducts);

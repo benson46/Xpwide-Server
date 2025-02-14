@@ -58,7 +58,6 @@ export const getCartItems = async (req, res, next) => {
       return sum + price * item.quantity;
     }, 0);
 
-    console.log(totalAmount);
     res.status(200).json({
       items: updatedItems,
       total: totalAmount,

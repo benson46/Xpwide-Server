@@ -53,7 +53,6 @@ export const adminLogin = async (req, res, next) => {
         _id: admin._id,
         email: admin.email,
         role: admin.role,
-        adminAccessToken,
       },
     });
   } catch (error) {
@@ -112,7 +111,7 @@ export const updateUserStatus = async (req, res, next) => {
       { $set: { isBlocked: !userData.isBlocked } },
       { new: true }
     );
-    res.json({
+    res.status(200).json({
       success: true,
       message: `User ${updatedUser.isBlocked ? "blocked" : "unblocked"}`,
       updatedUser,
@@ -125,7 +124,10 @@ export const updateUserStatus = async (req, res, next) => {
 // METHOD POST || REFRESH ADMIN ACCESS TOKEN
 export const refreshAdminAccessToken = async (req, res, next) => {
   try {
-    const { adminRefreshToken } = req.cookies;
+    const { adminRefreshToken,adminAccessToken } = req.cookies;
+    if(!adminAccessToken){
+      return res.status(403).json({message:"Access token is missing"})
+    }
     if (!adminRefreshToken) {
       return res.status(403).json({ message: "Refresh token is missing." });
     }
