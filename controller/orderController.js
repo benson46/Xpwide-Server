@@ -137,25 +137,27 @@ export const handleReturnRequest = async (req, res, next) => {
 
     if (action === "approve") {
       order.products[productIndex].status = "Return Approved";
-      const product = order.products[productIndex];
-      console.log(order)
-      const totalAmount = product._doc.price * product.quantity;
-
-      await Wallet.findOneAndUpdate(
-        { user: order.userId },
-        {
-          $inc: { balance: totalAmount },
-          $push: {
-            transactions: {
-              transactionDate: new Date(),
-              transactionType: "credit",
-              transactionStatus: "completed",
-              amount: totalAmount,
+      if(order.paymentMethod !== "COD"){
+        const product = order.products[productIndex];
+        const totalAmount = product.productPrice * product.quantity;
+        console.log(totalAmount)
+  
+        await Wallet.findOneAndUpdate(
+          { user: order.userId },
+          {
+            $inc: { balance: totalAmount },
+            $push: {
+              transactions: {
+                transactionDate: new Date(),
+                transactionType: "credit",
+                transactionStatus: "completed",
+                amount: totalAmount,
+              },
             },
           },
-        },
-        { new: true, upsert: true }
-      );
+          { new: true, upsert: true }
+        );
+      }
     } else if (action === "reject") {
       order.products[productIndex].status = "Return Rejected";
     } else {

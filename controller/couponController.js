@@ -27,7 +27,7 @@ export const addNewCoupon = async (req, res, next) => {
     expiryDate,
     usageLimit,
     eligibleCategories,
-    isPublic, // New field from admin
+    isPublic,
   } = req.body;
 
   if (
@@ -35,20 +35,9 @@ export const addNewCoupon = async (req, res, next) => {
     !minPurchaseAmount ||
     !startingDate ||
     !expiryDate ||
-    !usageLimit ||
-    !eligibleCategories
+    !usageLimit 
   ) {
     return res.status(400).json({ message: "All fields are required." });
-  }
-
-  if (eligibleCategories.includes("all")) {
-    const allCategories = await Category.find({}, "_id");
-    eligibleCategories = allCategories.map((category) => category._id);
-  }
-
-  const existingCoupon = await Coupon.findOne({ code });
-  if (existingCoupon) {
-    return res.status(400).json({ message: "Coupon code already exists." });
   }
 
   if (discount < 1 || discount > 100) {
@@ -75,7 +64,7 @@ export const addNewCoupon = async (req, res, next) => {
     expiryDate,
     usageLimit,
     eligibleCategories,
-    isPublic: isPublic ?? false, // Set public status (defaults to false)
+    isPublic: isPublic ?? false, 
   });
 
   try {

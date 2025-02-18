@@ -25,6 +25,10 @@ const orderSchema = new mongoose.Schema(
           ref: "Product",
           required: true,
         },
+        productPrice:{
+          type:Number,
+          required:true,
+        },
         quantity: {
           type: Number,
           required: true,
@@ -65,6 +69,30 @@ const orderSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Pre-Save Hook to Fetch Discount Price from Product Model
+orderSchema.pre("save", async function (next) {
+  try {
+    for (let product of this.products) {
+      // Fetch the product's discount price at the time of order
+      const productData = await mongoose
+        .model("Product")
+        .findById(product.productId)
+        .select("discountPrice");
+
+      if (productData) {
+        product.discountPrice = productData.discountPrice; // Store discount price at time of order
+      } else {
+        return next(new Error(`Product not found: ${product.productId}`));
+      }
+    }
+
+    next();
+  } catch (error) {
+    console.error("Error fetching discount price:", error);
+    next(error);
+  }
+});
 
 // Mongoose Pre-Save Hook to Sync Order Status with SalesReport
 orderSchema.pre("save", async function (next) {

@@ -9,6 +9,26 @@ import SalesReport from "../model/salesModel.js";
 
 // =============================== USER CONTROLLERS ===============================
 // METHOD GET || Fetch cart items for checkout
+
+const mapCartItemWithPricing = async (item) => {
+  const pricing = await calculateBestOffer(item.productId);
+  const discountedPrice = pricing.hasOffer
+    ? pricing.discountedPrice
+    : item.productId.price;
+
+  return {
+    ...item.toObject(),
+    effectivePrice: discountedPrice,
+    hasOffer: pricing.hasOffer,
+    discountedPrice: pricing.discountedPrice,
+    offer: pricing.offer,
+    productId: {
+      ...item.productId.toObject(),
+      discountedPrice,
+    },
+  };
+};
+
 export const getCartItems = async (req, res, next) => {
   const userId = req.user.id;
   try {
@@ -24,43 +44,31 @@ export const getCartItems = async (req, res, next) => {
     const validItems = cart.items.filter(
       (item) => item.productId && item.productId.stock > 0
     );
-    const updatedItems = await Promise.all(
-      validItems.map(async (item) => {
-        const pricing = await calculateBestOffer(item.productId);
 
-        return {
-          ...item.toObject(), // Convert to plain object to avoid Mongoose reversion
-          effectivePrice: pricing.hasOffer
-            ? pricing.discountedPrice
-            : item.productId.price,
-          hasOffer: pricing.hasOffer,
-          discountedPrice: pricing.discountedPrice,
-          offer: pricing.offer,
-          productId: {
-            ...item.productId.toObject(),
-            discountedPrice: pricing.hasOffer
-              ? pricing.discountedPrice
-              : item.productId.price,
-          },
-        };
-      })
+    const updatedItems = await Promise.all(
+      validItems.map(mapCartItemWithPricing)
     );
 
     const totalQuantity = updatedItems.reduce(
       (sum, item) => sum + item.quantity,
       0
     );
-    const totalAmount = updatedItems.reduce((sum, item) => {
-      const price =
-        item.effectivePrice !== undefined
-          ? item.effectivePrice
-          : item.productId.price;
-      return sum + price * item.quantity;
-    }, 0);
+
+    const totalAmount = updatedItems.reduce(
+      (sum, item) => sum + item.effectivePrice * item.quantity,
+      0
+    );
+
+    const originalPrice = updatedItems.reduce(
+      (sum, item) => sum + item.productId.price * item.quantity,
+      0
+    );
+    console.log(originalPrice);
 
     res.status(200).json({
       items: updatedItems,
       total: totalAmount,
+      originalPrice,
       totalQuantity,
       message:
         updatedItems.length > 0
@@ -77,7 +85,6 @@ export const checkoutOrderSuccess = async (req, res, next) => {
   try {
     const { products, paymentMethod, addressId } = req.body;
     const userId = req.user.id;
-    const userName = req.user.name;
     if (!products?.length) {
       return res.status(400).json({ message: "No products in order." });
     }
@@ -102,17 +109,19 @@ export const checkoutOrderSuccess = async (req, res, next) => {
         }
 
         const pricing = await calculateBestOffer(product);
+
+        const hasOffer = pricing.hasOffer;
+        const originalPrice = product._doc.price;
+        const price = hasOffer ? pricing.discountedPrice : originalPrice;
+        const discount = hasOffer ? originalPrice - pricing.discountedPrice : 0;
         return {
           productId: item.productId,
           name: product.name,
+          productPrice: originalPrice - discount,
           quantity: item.quantity,
-          originalPrice: product._doc.price,
-          price: pricing.hasOffer
-            ? pricing.discountedPrice
-            : product._doc.price,
-          discount: pricing.hasOffer
-            ? product._doc.price - pricing.discountedPrice
-            : 0,
+          originalPrice,
+          price,
+          discount,
         };
       })
     );
@@ -143,10 +152,11 @@ export const checkoutOrderSuccess = async (req, res, next) => {
               transactionType: "debit",
               transactionStatus: "completed",
               amount: recalculatedTotalAmount,
-              description: "Order payment",
+              description: `Paid ₹${recalculatedTotalAmount} for order`,
             },
           },
-        }
+        },
+        { new: true, runValidators: true }
       );
     }
 
@@ -167,7 +177,6 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       status: "Pending",
     });
 
-    // Create sales report
     await SalesReport.create({
       orderId: order._id,
       product: processedProducts.map((item) => ({
@@ -186,7 +195,6 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       deliveryStatus: "Pending",
     });
 
-    // Clear cart
     await Cart.findOneAndUpdate({ userId }, { $set: { items: [] } });
     return res.status(201).json({
       message: "Order placed successfully.",
@@ -197,4 +205,5 @@ export const checkoutOrderSuccess = async (req, res, next) => {
     next(error);
   }
 };
+
 // _______________________________________________________________________//

@@ -81,7 +81,6 @@ export const getUsersList = async (req, res, next) => {
   const { page = 1, limit = 10 } = req.query;
   try {
     const totalUsersCount = await User.countDocuments({});
-    const totalPages = Math.ceil(totalUsersCount / limit);
     const usersList = await User.find({}, { password: false })
       .skip((page - 1) * limit)
       .limit(limit)
@@ -89,7 +88,7 @@ export const getUsersList = async (req, res, next) => {
     usersList.forEach((user) => {
       user.createdAt = convertDateToMonthAndYear(user.createdAt);
     });
-    res.status(200).json({ success: true, page, totalPages, users: usersList });
+    res.status(200).json({ success: true, users: usersList,total:totalUsersCount });
   } catch (error) {
     next(error);
   }

@@ -131,7 +131,7 @@ userRouter.patch("/orders/:orderId/return/:productId", initiateReturn);
 userRouter
   .route('/wallet')
   .get(authenticateUser, getWalletDetails)
-  .post(authenticateUser, updateWalletbalance);
+  .put(authenticateUser, updateWalletbalance);
 
 /* ---------------------------- WISHLIST MANAGEMENT ---------------------------- */
 

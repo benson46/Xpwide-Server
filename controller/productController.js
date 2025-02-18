@@ -32,7 +32,9 @@ export const getAllProducts = async (req, res, next) => {
       })
     );
 
-    res.status(200).json({ success:true, products: productsWithPricing,totalProducts });
+    res
+      .status(200)
+      .json({ success: true, products: productsWithPricing, totalProducts });
   } catch (error) {
     next(error);
   }
@@ -116,7 +118,7 @@ export const updateProductStatus = async (req, res, next) => {
 
     res.json({
       success: true,
-      message: `User status updated to ${
+      message: `Product status updated to ${
         updateProductData.isBlocked ? "blocked" : "active"
       }`,
       updateProductData,
@@ -128,18 +130,14 @@ export const updateProductStatus = async (req, res, next) => {
 
 // METHOD PUT || Edit a product
 export const editProduct = async (req, res, next) => {
-  const productId = req.params.id;
   const { id, name, brand, category, description, price, stock, images } =
     req.body;
-
   try {
     const [product, categories, brands] = await Promise.all([
       Product.findById(id),
       Category.findOne({ _id: category }),
       Brand.findOne({ _id: brand }),
     ]);
-
-;
 
     if (!product) {
       return res.status(404).json({
@@ -164,9 +162,18 @@ export const editProduct = async (req, res, next) => {
     product.images = images || product.images;
     await product.save();
 
+    const updatedProduct = await Product.findById(id)
+      .populate("category", "title") // Only fetch category title
+      .populate("brand", "title"); // Only fetch brand title
+
+    console.log(updatedProduct);
     res
       .status(200)
-      .json({ success: true, message: "Product updated successfully" });
+      .json({
+        success: true,
+        message: "Product updated successfully",
+        product: updatedProduct,
+      });
   } catch (error) {
     next(error);
   }
@@ -251,7 +258,6 @@ export const getProducts = async (req, res, next) => {
   }
 };
 
-
 // METHOD GET || GET A PRODUCT DETIALS
 export const getProductDetails = async (req, res, next) => {
   const { productId } = req.query;
@@ -326,7 +332,6 @@ export const getFeaturedProducts = async (req, res, next) => {
         };
       })
     );
-    
 
     res.status(200).json({ products: featuredProductsWithPricing });
   } catch (error) {

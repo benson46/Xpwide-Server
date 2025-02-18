@@ -18,7 +18,7 @@ export const getWalletDetails = async (req, res,next) => {
   }
 };
 
-// METHOD POST || Updating wallet balance
+// METHOD PUT || Updating wallet balance
 export const updateWalletbalance = async (req, res,next) => {
   const userId = req.user.id;
   const { amount, paymentStatus, type, products } = req.body;
