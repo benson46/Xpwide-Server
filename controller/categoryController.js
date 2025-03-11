@@ -54,8 +54,12 @@ export const updateCategoryStatus = async (req, res, next) => {
 // METHOD GET || Fetch all categories
 export const getAllCategories = async (req, res, next) => {
   try {
-    const categories = await Category.find();
-    res.status(200).json({ success: true, categories });
+    const { page = 1, limit = 5 } = req.query;
+    const skip = (page - 1) * limit;
+    const totalCategories = await Category.countDocuments();
+
+    const categories = await Category.find().skip(skip).limit(parseInt(limit));
+    res.status(200).json({ success: true, categories,totalCategories });
   } catch (error) {
     next(error);
   }

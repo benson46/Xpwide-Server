@@ -19,6 +19,10 @@ const categorySchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  hasOffer:{
+    type:Boolean,
+    default:false,
+  },
   isBlocked: {
     type: Boolean,
     default: false,

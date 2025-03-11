@@ -2,8 +2,8 @@ import User from "../model/userModel.js";
 // _______________________________________________________________________//
 
 // =============================== USER CONTROLLERS ===============================
-// METHOD GET || Show profile detials
-export const getProfileDetials = async (req, res, next) => {
+// METHOD GET || Show profile details
+export const getProfileDetails = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const userData = await User.findById(userId);
@@ -16,8 +16,8 @@ export const getProfileDetials = async (req, res, next) => {
   }
 };
 
-// METHOD POST || Edit Profile Detials
-export const editProfileDetials = async (req, res, next) => {
+// METHOD POST || Edit Profile Details
+export const editProfileDetails = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { firstName, lastName, email, phoneNumber } = req.body;

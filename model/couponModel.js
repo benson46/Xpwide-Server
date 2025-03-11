@@ -43,6 +43,24 @@ const couponSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  usageLimitPerUser:{
+    type:Number,
+    default:null,
+    min:[1,"Per-user usage limit must be at least 1 "],
+    required:true,
+  },
+  usedBy: [{
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    count: {
+      type: Number,
+      default: 0,
+      min: [0, "Usage count cannot be negative"]
+    }
+  }],
   isActive: {
     type: Boolean,
     default: true,
@@ -70,6 +88,7 @@ const couponSchema = new mongoose.Schema({
 
 // Index for automatic expiration of coupons
 couponSchema.index({ expiryDate: 1 }, { expireAfterSeconds: 0 });
+couponSchema.index({ 'usedBy.userId': 1 });
 
 // Middleware to update `updatedAt` and `isActive` before saving
 couponSchema.pre("save", function (next) {

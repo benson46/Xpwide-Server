@@ -1,8 +1,8 @@
-import mongoose from "mongoose";
 import Offer from "../model/offerModel.js";
 
 export const calculateBestOffer = async (product) => {
-  if (!product || typeof product.discountedPrice !== "number") {
+  // Validate using the correct price property
+  if (!product || typeof product._doc.price !== "number") {
     console.error("Invalid product or price:", product);
     return { originalPrice: 0, discountedPrice: 0, hasOffer: false, offer: null };
   }
@@ -15,17 +15,14 @@ export const calculateBestOffer = async (product) => {
     isActive: true,
   });
 
-  const allOffers = await Offer.find({ product: product._id });
+  const productOffer = await Offer.findOne({
+    offerType: "product",
+    product: product._id,
+    isActive: true,
+  });
 
-
-const productOffer = await Offer.findOne({
-  offerType: "product",
-  product: product._id, 
-  isActive: true,
-});
-
-  console.log("product d price: ",product._doc.price)
-  let originalPrice = product._doc.price ; // Use the current discounted price as base
+  console.log("product d price: ", product._doc.price);
+  let originalPrice = product._doc.price;
   let bestOffer = null;
   let finalPrice = originalPrice;
 
@@ -37,10 +34,8 @@ const productOffer = await Offer.findOne({
 
   if (productOffer) {
     const productDiscountedPrice = originalPrice * (1 - productOffer.value / 100);
-    
     // Choose the offer that results in the lower price
     if (productDiscountedPrice < finalPrice) {
-      console.log(productDiscountedPrice)
       finalPrice = productDiscountedPrice;
       bestOffer = productOffer;
     }

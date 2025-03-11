@@ -6,6 +6,7 @@ import Category from "../model/categoryModel.js";
 // _______________________________________________________________________//
 
 // =========================== ADMIN CONTROLLERS ===========================
+
 // METHOD POST || Create a new offer
 export const createOffer = async (req, res, next) => {
   try {
@@ -41,22 +42,28 @@ export const createOffer = async (req, res, next) => {
       });
     }
 
-    // Ensure product or category doesn't already have an active offer
+    // Ensure the product or category doesn't already have an active offer
+    // In createOffer controller
+    // Add explicit check for existing active offers for product/category
     if (offerType === "product") {
-      const productWithOffer = await Product.findById(product).select(
-        "activeOffer"
-      );
-      if (productWithOffer?.activeOffer) {
+      const existingProductOffer = await Offer.findOne({
+        product,
+        isActive: true,
+        offerType: "product",
+      });
+      if (existingProductOffer) {
         return res.status(400).json({
           success: false,
           error: "This product already has an active offer",
         });
       }
     } else if (offerType === "category") {
-      const categoryWithOffer = await Category.findById(category).select(
-        "activeOffer"
-      );
-      if (categoryWithOffer?.activeOffer) {
+      const existingCategoryOffer = await Offer.findOne({
+        category,
+        isActive: true,
+        offerType: "category",
+      });
+      if (existingCategoryOffer) {
         return res.status(400).json({
           success: false,
           error: "This category already has an active offer",
@@ -64,6 +71,7 @@ export const createOffer = async (req, res, next) => {
       }
     }
 
+    // Create the offer. Note that for category offers we use the "category" field.
     const offer = await Offer.create({
       offerType,
       name,
@@ -72,6 +80,14 @@ export const createOffer = async (req, res, next) => {
       [offerType]: offerType === "product" ? product : category,
       isActive: true,
     });
+
+    // Populate the offer with category title or product name
+    const populatedOffer = await Offer.findById(offer._id)
+      .populate(
+        offerType === "product" ? "product" : "category",
+        offerType === "product" ? "name" : "title"
+      )
+      .exec();
 
     if (offerType === "product") {
       await Product.findByIdAndUpdate(product, {
@@ -86,8 +102,12 @@ export const createOffer = async (req, res, next) => {
         discountedPrice: bestOfferData.discountedPrice,
       });
     } else {
-      const productsInCategory = await Product.find({ category });
+      // For category offers, update the category to reflect that it now has an offer.
+      await Category.findByIdAndUpdate(category, {
+        hasOffer: true,
+      });
 
+      const productsInCategory = await Product.find({ category });
       for (const prod of productsInCategory) {
         const bestOfferData = await calculateBestOffer(prod);
         await Product.findByIdAndUpdate(prod._id, {
@@ -98,7 +118,7 @@ export const createOffer = async (req, res, next) => {
 
     return res.status(201).json({
       success: true,
-      data: offer,
+      offer: populatedOffer, // Send populated offer
     });
   } catch (error) {
     next(error);
@@ -115,9 +135,15 @@ export const getOffers = async (req, res, next) => {
       .populate("product", "name")
       .populate("category", "title");
 
+    const [totalProductOffers,totalCategoryOffers] = await Promise.all([
+      Offer.countDocuments({offerType:"product"}),
+      Offer.countDocuments({offerType:"category"}),
+    ])
     res.json({
       success: true,
       data: offers,
+      totalCategoryOffers,
+      totalProductOffers
     });
   } catch (error) {
     next(error);
@@ -137,10 +163,8 @@ export const getOfferCategories = async (req, res, next) => {
   }
 };
 
-// =========================== COMMON CONTROLLERS ===========================
-
 // METHOD PUT || Update an offer
-export const updateOffer = async (req, res, next) => {
+export const updateOffer = async (req, res, next) => { 
   try {
     const { id } = req.params;
     const { offerType, name, value, endDate, product, category } = req.body;
@@ -152,17 +176,46 @@ export const updateOffer = async (req, res, next) => {
       });
     }
 
-    const existingOffer = await Offer.findOne({
+    const existingOfferWithSameName = await Offer.findOne({
       name,
       _id: { $ne: id },
     });
-    if (existingOffer) {
+    if (existingOfferWithSameName) {
       return res.status(400).json({
         success: false,
         error: "An offer with this name already exists",
       });
     }
 
+    // Fetch the current offer to check for category changes
+    const currentOffer = await Offer.findById(id);
+    if (!currentOffer) {
+      return res.status(404).json({
+        success: false,
+        error: "Offer not found",
+      });
+    }
+
+    // For a category offer, if the category is changing ensure no conflict
+    if (offerType === "category") {
+      if (String(currentOffer.category) !== category) {
+        const newCategory = await Category.findById(category).select("hasOffer");
+        if (newCategory && newCategory.hasOffer) {
+          return res.status(400).json({
+            success: false,
+            error: "This category already has an active offer",
+          });
+        }
+        // Remove the offer flag from the old category
+        if (currentOffer.category) {
+          await Category.findByIdAndUpdate(currentOffer.category, {
+            hasOffer: false,
+          });
+        }
+      }
+    }
+
+    // Update the offer and populate the appropriate field
     const updatedOffer = await Offer.findByIdAndUpdate(
       id,
       {
@@ -173,16 +226,22 @@ export const updateOffer = async (req, res, next) => {
         [offerType]: offerType === "product" ? product : category,
       },
       { new: true }
-    );
+    ).populate(offerType === "product" ? "product" : "category");
+
+    // For a category offer, mark the new category as having an offer
+    if (offerType === "category") {
+      await Category.findByIdAndUpdate(category, { hasOffer: true });
+    }
 
     return res.status(200).json({
       success: true,
-      data: updatedOffer,
+      offer: updatedOffer,
     });
   } catch (error) {
     next(error);
   }
 };
+
 
 // METHOD DELETE || Delete an offer
 export const deleteOffer = async (req, res, next) => {
@@ -204,13 +263,27 @@ export const deleteOffer = async (req, res, next) => {
       });
     }
 
+    // Delete the offer from the Offer collection
     await Offer.findByIdAndDelete(id);
+
+    // Update products that reference this offer.
+    await Product.updateMany(
+      { activeOffer: id },
+      { $set: { activeOffer: null, offer: null, hasOffer: false } }
+    );
+
+    // If the offer is for a category, update that category's hasOffer flag.
+    if (offer.offerType === "category" && offer.category) {
+      await Category.findByIdAndUpdate(offer.category, { hasOffer: false });
+    }
+
     return res.status(200).json({
       success: true,
-      message: "Offer deleted successfully",
+      message: "Offer deleted successfully and removed from products",
     });
   } catch (error) {
     next(error);
   }
 };
+
 // _______________________________________________________________________//

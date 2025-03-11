@@ -48,7 +48,6 @@ import {
   deleteOffer,
   getOfferCategories,
   getOffers,
-  // searchProducts,
   updateOffer,
 } from "../controller/offerController.js";
 import {
@@ -56,7 +55,8 @@ import {
   downloadPDFReport,
   getSalesReport,
 } from "../controller/salesController.js";
-import { adminSearchController } from "../controller/serachController.js";
+import {searchBrands, searchCategories, searchCoupons, searchProducts, searchUsers } from "../controller/searchController.js";
+import { createBanner, deleteBanner, getBanners, toggleBannerStatus, updateBanner } from "../controller/bannerController.js";
 
 const adminRouter = express.Router();
 
@@ -71,7 +71,12 @@ adminRouter.post("/logout", adminLogout);
 // // METHOD POST || REFRESH ADMIN ACCESS TOKEN
 // adminRouter.post("/refresh-access-token", refreshAdminAccessToken);
 
-adminRouter.get("/search/:entity", authenticateAdmin, adminSearchController);
+adminRouter.get("/products/search", authenticateAdmin, searchProducts);
+adminRouter.get("/users/search",authenticateAdmin,searchUsers)
+adminRouter.get("/category/search",authenticateAdmin,searchCategories)
+adminRouter.get("/brand/search",authenticateAdmin,searchBrands)
+adminRouter.get("/coupons/search",authenticateAdmin,searchCoupons)
+
 /* ---------------------------- USERS MANAGEMENT ---------------------------- */
 
 // METHOD GET || GET USERS LIST
@@ -119,6 +124,14 @@ adminRouter
   .get(authenticateAdmin, getAllProducts)
   .post(authenticateAdmin, addNewProduct);
 
+
+  // METHOD PATCH || UPDATE FEATURED PRODUCTS
+adminRouter.patch(
+  "/products/feature",
+  authenticateAdmin,
+  updateFeaturedProducts
+);
+
 adminRouter.patch(
   "/products/:productId",
   authenticateAdmin,
@@ -128,12 +141,7 @@ adminRouter.patch(
 // METHOD PUT || EDIT PRODUCT DETAILS
 adminRouter.put("/products/edit-product", authenticateAdmin, editProduct);
 
-// METHOD PATCH || UPDATE FEATURED PRODUCTS
-adminRouter.patch(
-  "/products/feature",
-  authenticateAdmin,
-  updateFeaturedProducts
-);
+
 
 /* ---------------------------- ORDER MANAGEMENT ---------------------------- */
 
@@ -186,9 +194,6 @@ adminRouter.get("/offers/getoffers", authenticateAdmin, getOffers);
 // METHOD GET || GET ALL CATEGORIES IN ADDING NEW CATEGORY OFFER
 adminRouter.get("/offers/categories", authenticateAdmin, getOfferCategories);
 
-// // METHOD GET || SEARCH PRODUCTS FOR OFFERS
-// adminRouter.get("/offers/products/search", authenticateAdmin, searchProducts);
-
 // METHOD PUT || UPDATE OFFER DETAILS
 adminRouter.put("/offers/:id", authenticateAdmin, updateOffer);
 
@@ -199,10 +204,21 @@ adminRouter.delete("/offers/:id", authenticateAdmin, deleteOffer);
 // METHOD GET || SALES REPORT
 adminRouter.get("/sales-report", getSalesReport);
 
-// METHOD GET || DOWLOAD SALES REPORT PDF
+// METHOD GET || DOWNLOAD SALES REPORT PDF
 adminRouter.get("/download-report/pdf", downloadPDFReport);
 
-// METHOD GET || DOWLOAD SALES REPORT EXCEL
+// METHOD GET || DOWNLOAD SALES REPORT EXCEL
 adminRouter.get("/download-report/excel", downloadExcelReport);
+
+/* ---------------------------- BANNER MANAGEMENT ---------------------------- */
+adminRouter.route('/banners')
+  .post(authenticateAdmin, createBanner)
+  .get(getBanners);
+
+adminRouter.route('/banners/:id')
+  .delete(authenticateAdmin, deleteBanner)
+  .put(authenticateAdmin, updateBanner);
+
+adminRouter.patch('/banners/toggle/:id', authenticateAdmin, toggleBannerStatus);
 
 export default adminRouter;

@@ -5,6 +5,7 @@ import Product from "../model/productModel.js";
 import Wallet from "../model/walletModel.js";
 import { calculateBestOffer } from "../utils/calculateBestOffer.js";
 import SalesReport from "../model/salesModel.js";
+import Coupon from "../model/couponModel.js";
 // _______________________________________________________________________//
 
 // =============================== USER CONTROLLERS ===============================
@@ -83,7 +84,8 @@ export const getCartItems = async (req, res, next) => {
 // METHOD POST || Process checkout order
 export const checkoutOrderSuccess = async (req, res, next) => {
   try {
-    const { products, paymentMethod, addressId } = req.body;
+    console.log(req.body)
+    const { products, paymentMethod, addressId,couponCode } = req.body;
     const userId = req.user.id;
     if (!products?.length) {
       return res.status(400).json({ message: "No products in order." });
@@ -168,13 +170,77 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       )
     );
 
+
+    let discountAmount = 0;
+    let couponUsed = null;
+
+    if (couponCode) {
+      couponUsed = await Coupon.findOne({ code: couponCode.toUpperCase() });
+      if (!couponUsed) {
+        return res.status(400).json({ message: "Invalid coupon code." });
+      }
+
+      // Re-validate coupon
+      if (
+        !couponUsed.isActive ||
+        (couponUsed.expiryDate && new Date(couponUsed.expiryDate) < new Date())
+      ) {
+        return res.status(400).json({ message: "Coupon is not valid." });
+      }
+
+      if (recalculatedTotalAmount < couponUsed.minPurchaseAmount) {
+        return res.status(400).json({
+          message: `Minimum purchase amount for this coupon is ₹${couponUsed.minPurchaseAmount}.`,
+        });
+      }
+
+      if (
+        couponUsed.usageLimit !== null &&
+        couponUsed.usageCount >= couponUsed.usageLimit
+      ) {
+        return res.status(400).json({ message: "Coupon fully redeemed." });
+      }
+
+      const userUsage = couponUsed.usedBy.find((entry) =>
+        entry.userId.equals(userId)
+      );
+      if (
+        couponUsed.usageLimitPerUser !== null &&
+        userUsage &&
+        userUsage.count >= couponUsed.usageLimitPerUser
+      ) {
+        return res.status(400).json({ message: "Coupon usage limit reached." });
+      }
+
+      // Calculate discount
+      discountAmount = (recalculatedTotalAmount * couponUsed.discount) / 100;
+      if (couponUsed.maxDiscount && discountAmount > couponUsed.maxDiscount) {
+        discountAmount = couponUsed.maxDiscount;
+      }
+
+      // Update coupon usage
+      couponUsed.usageCount += 1;
+      if (couponUsed.usageLimitPerUser !== null) {
+        if (userUsage) {
+          userUsage.count += 1;
+        } else {
+          couponUsed.usedBy.push({ userId, count: 1 });
+        }
+      }
+      await couponUsed.save();
+    }
+
+    const newTotal = recalculatedTotalAmount - discountAmount;
+
+
     const order = await Order.create({
       addressId,
       paymentMethod,
       products: processedProducts,
       userId,
-      totalAmount: recalculatedTotalAmount,
+      totalAmount: newTotal,
       status: "Pending",
+      couponCode: couponCode || null,
     });
 
     await SalesReport.create({
@@ -188,7 +254,7 @@ export const checkoutOrderSuccess = async (req, res, next) => {
         discount: item.discount,
         couponDeduction: 0,
       })),
-      finalAmount: recalculatedTotalAmount,
+      finalAmount: newTotal,
       orderDate: new Date(),
       customer: userId,
       paymentMethod,

@@ -5,9 +5,11 @@ import Product from "../model/productModel.js";
 
 // =========================== ADMIN CONTROLLERS ===========================
 // METHOD GET || Get all coupons with pagination
+
+
 export const getAllCoupons = async (req, res, next) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 5 } = req.query;
     const skip = (page - 1) * limit;
     const totalCoupons = await Coupon.countDocuments();
     const coupons = await Coupon.find().skip(skip).limit(Number(limit));
@@ -19,24 +21,18 @@ export const getAllCoupons = async (req, res, next) => {
 
 // METHOD POST || Create a new coupon
 export const addNewCoupon = async (req, res, next) => {
-  let {
+  const {
     code,
     discount,
     minPurchaseAmount,
     startingDate,
     expiryDate,
     usageLimit,
-    eligibleCategories,
     isPublic,
+    usageLimitPerUser,
   } = req.body;
 
-  if (
-    !code ||
-    !minPurchaseAmount ||
-    !startingDate ||
-    !expiryDate ||
-    !usageLimit 
-  ) {
+  if (!code || !minPurchaseAmount || !startingDate || !expiryDate || !usageLimit) {
     return res.status(400).json({ message: "All fields are required." });
   }
 
@@ -45,77 +41,86 @@ export const addNewCoupon = async (req, res, next) => {
   }
 
   if (new Date(expiryDate) <= new Date(startingDate)) {
-    return res
-      .status(400)
-      .json({ message: "Expiry date must be after start date" });
+    return res.status(400).json({ message: "Expiry date must be after start date." });
   }
 
   if (minPurchaseAmount < 0) {
-    return res
-      .status(400)
-      .json({ message: "Minimum purchase amount cannot be negative" });
+    return res.status(400).json({ message: "Minimum purchase amount cannot be negative." });
   }
 
+  // Remove whitespace from coupon code
+  const cleanedCode = code.replace(/\s+/g, "");
+
   const coupon = new Coupon({
-    code,
+    code: cleanedCode,
     discount,
     minPurchaseAmount,
     startingDate,
     expiryDate,
     usageLimit,
-    eligibleCategories,
-    isPublic: isPublic ?? false, 
+    usageLimitPerUser,
+    eligibleCategories: [],
+    isPublic: isPublic ?? false,
   });
 
   try {
     const newCoupon = await coupon.save();
-    res.status(201).json(newCoupon);
+    res.status(201).json({success:true,newCoupon});
   } catch (err) {
     next(err);
   }
 };
+
 
 // METHOD PUT || Update coupon by ID
 export const updateCoupon = async (req, res, next) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
+    
+    const coupon = await Coupon.findById(id);
 
-    let coupon = await Coupon.findById(id);
+    if (updateData.usageLimitPerUser !== undefined) {
+      coupon.usageLimitPerUser = updateData.usageLimitPerUser;
+    }
     if (!coupon) {
-      return res.status(404).json({ message: "Coupon not found" });
+      return res.status(404).json({ message: "Coupon not found." });
+    }
+
+    // If a new coupon code is provided, remove whitespace
+    if (updateData.code) {
+      updateData.code = updateData.code.replace(/\s+/g, "");
     }
 
     if (
       updateData.expiryDate &&
       new Date(updateData.expiryDate) <= new Date(coupon.startingDate)
     ) {
-      return res
-        .status(400)
-        .json({ message: "Expiry date must be after start date" });
+      return res.status(400).json({ message: "Expiry date must be after start date." });
     }
 
     if (
       updateData.discount &&
       (updateData.discount < 1 || updateData.discount > 100)
     ) {
-      return res
-        .status(400)
-        .json({ message: "Discount must be between 1-100%" });
+      return res.status(400).json({ message: "Discount must be between 1-100%." });
     }
 
     Object.assign(coupon, updateData);
+
     coupon.isActive =
       (!coupon.expiryDate || coupon.expiryDate > new Date()) &&
       (coupon.usageLimit === null || coupon.usageCount < coupon.usageLimit);
     coupon.updatedAt = Date.now();
 
     await coupon.save();
-    res.status(200).json({ message: "Coupon updated successfully", coupon });
+    res.status(200).json({success:true, message: "Coupon updated successfully", coupon });
   } catch (error) {
     next(error);
   }
 };
+
+
 
 
 // METHOD DELETE || Delete coupon by ID
@@ -146,6 +151,7 @@ export const getPublicCoupons = async (req, res, next) => {
 export const applyCoupon = async (req, res,next) => {
   try {
     const { code, cartTotal } = req.body;
+    const userId = req.user.id;
 
     if (!code) {
       return res.status(400).json({ message: "Coupon code is required." });
@@ -155,6 +161,25 @@ export const applyCoupon = async (req, res,next) => {
     if (!coupon) {
       return res.status(404).json({ message: "Invalid coupon code." });
     }
+
+     // Check total usage limit
+     if (coupon.usageLimit !== null && coupon.usageCount >= coupon.usageLimit) {
+      return res.status(400).json({ message: "This coupon has been fully redeemed." });
+    }
+
+
+    if (coupon.usageLimitPerUser !== null) {
+      const userUsage = coupon.usedBy.find(entry => 
+        entry.userId.equals(userId)
+      );
+      
+      if (userUsage && userUsage.count >= coupon.usageLimitPerUser) {
+        return res.status(400).json({ 
+          message: "You've reached your usage limit for this coupon." 
+        });
+      }
+    }
+
 
     if (coupon.expiryDate && new Date(coupon.expiryDate) < new Date()) {
       return res.status(400).json({ message: "This coupon has expired." });
@@ -170,7 +195,7 @@ export const applyCoupon = async (req, res,next) => {
 
     const discountAmount = (cartTotal * coupon.discount) / 100;
     const newTotal = cartTotal - discountAmount;
-
+    
     res
       .status(200)
       .json({

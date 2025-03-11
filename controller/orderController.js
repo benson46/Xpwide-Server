@@ -9,8 +9,7 @@ import SalesReport from "../model/salesModel.js";
 // METHOD GET || Get all orders with detailed information
 export const getAllOrdersAdmin = async (req, res, next) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
+    const { page = 1, limit = 5 } = req.query;
     const totalOrders = await Order.countDocuments();
     const orders = await Order.find()
       .populate("userId", "firstName lastName email")
@@ -31,6 +30,7 @@ export const getAllOrdersAdmin = async (req, res, next) => {
         quantity: p.quantity,
         status: p.status,
       })),
+      paymentMethod:order.paymentMethod,
       totalAmount: order.totalAmount,
       status: order.status,
       createdAt: order.createdAt,
@@ -118,30 +118,36 @@ export const handleReturnRequest = async (req, res, next) => {
     const { orderId, productId } = req.params;
     const { action } = req.body;
 
+    // Fetch the order
     const order = await Order.findById(orderId);
-    if (!order) return res.status(404).json({ message: "Order not found" });
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
 
-    const productIndex = order.products.findIndex(
+    // Find the specific product within the order
+    const product = order.products.find(
       (p) => p.productId.toString() === productId.toString()
     );
-
-    if (productIndex === -1) {
+    if (!product) {
       return res.status(404).json({ message: "Product not found in order" });
     }
 
-    if (order.products[productIndex].status !== "Return Pending") {
+    // Ensure the product is in the "Return Pending" state
+    if (product.status !== "Return Pending") {
       return res
         .status(400)
         .json({ message: "Product not in return pending state" });
     }
 
+    // Process the return request based on action
     if (action === "approve") {
-      order.products[productIndex].status = "Return Approved";
-      if(order.paymentMethod !== "COD"){
-        const product = order.products[productIndex];
+      product.status = "Return Approved";
+      
+      if (
+        order.paymentMethod !== "COD" ||
+        (order.paymentMethod === "COD" && order.status === "Delivered")
+      ) {
         const totalAmount = product.productPrice * product.quantity;
-        console.log(totalAmount)
-  
         await Wallet.findOneAndUpdate(
           { user: order.userId },
           {
@@ -159,18 +165,24 @@ export const handleReturnRequest = async (req, res, next) => {
         );
       }
     } else if (action === "reject") {
-      order.products[productIndex].status = "Return Rejected";
+      product.status = "Return Rejected";
     } else {
       return res.status(400).json({ message: "Invalid action" });
     }
 
+    // Save the updated order
     await order.save();
-    res.json({ message: `Return request ${action}ed`, order });
+    res.json({
+      success: true,
+      message: `Return request ${action}ed`,
+      order,
+    });
   } catch (error) {
     console.error("Error handling return request:", error);
     next(error);
   }
 };
+
 
 // =========================== USER CONTROLLERS ============================
 // METHOD GET || Get user's order history

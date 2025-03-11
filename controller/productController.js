@@ -9,7 +9,7 @@ import { calculateBestOffer } from "../utils/calculateBestOffer.js";
 // METHOD GET || Show all products
 export const getAllProducts = async (req, res, next) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 5 } = req.query;
 
     const skip = (page - 1) * limit;
 
@@ -19,6 +19,7 @@ export const getAllProducts = async (req, res, next) => {
       .limit(parseInt(limit))
       .populate({ path: "category", select: "title isBlocked" })
       .populate({ path: "brand", select: "title" });
+
 
     const productsWithPricing = await Promise.all(
       products.map(async (product) => {
@@ -32,6 +33,7 @@ export const getAllProducts = async (req, res, next) => {
       })
     );
 
+
     res
       .status(200)
       .json({ success: true, products: productsWithPricing, totalProducts });
@@ -43,8 +45,7 @@ export const getAllProducts = async (req, res, next) => {
 // METHOD POST || Add a new product
 export const addNewProduct = async (req, res, next) => {
   try {
-    const { name, brand, category, description, price, stock, images } =
-      req.body;
+    const { name, brand, category, description, price, stock, images } = req.body;
     if (!name || !category || !brand || !price || !stock || !description) {
       return res.status(400).json({
         message: "All fields are required.",
@@ -83,45 +84,14 @@ export const addNewProduct = async (req, res, next) => {
 
     const savedProduct = await newProduct.save();
 
+    // Populate the brand and category fields with their titles
+    await savedProduct.populate('brand', 'title');
+    await savedProduct.populate('category', 'title');
+
     res.status(201).json({
       success: true,
       message: "Product added successfully",
       product: savedProduct,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// METHOD PATCH || Block and Unblock products
-export const updateProductStatus = async (req, res, next) => {
-  const { productId } = req.params;
-  try {
-    const productData = await Product.findById(productId);
-
-    if (!productData) {
-      return res.status(404).json({
-        success: false,
-        message: "Product not found",
-      });
-    }
-
-    const updateProductData = await Product.findByIdAndUpdate(
-      productId,
-      { $set: { isBlocked: !productData.isBlocked } },
-      { new: true }
-    );
-
-    if (updateProductData.isBlocked) {
-      await storeRefreshToken(updateProductData._id, null);
-    }
-
-    res.json({
-      success: true,
-      message: `Product status updated to ${
-        updateProductData.isBlocked ? "blocked" : "active"
-      }`,
-      updateProductData,
     });
   } catch (error) {
     next(error);
@@ -166,7 +136,6 @@ export const editProduct = async (req, res, next) => {
       .populate("category", "title") // Only fetch category title
       .populate("brand", "title"); // Only fetch brand title
 
-    console.log(updatedProduct);
     res
       .status(200)
       .json({
@@ -181,6 +150,24 @@ export const editProduct = async (req, res, next) => {
 
 // METHOD PATCH || Change a product status featured or not featured
 export const updateFeaturedProducts = async (req, res, next) => {
+  console.log(`hello
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    hello`)
   const { productId } = req.body;
 
   try {
@@ -207,6 +194,41 @@ export const updateFeaturedProducts = async (req, res, next) => {
     next(error);
   }
 };
+
+// METHOD PATCH || Block and Unblock products
+export const updateProductStatus = async (req, res, next) => {
+  const { productId } = req.params;
+  try {
+    const productData = await Product.findById(productId);
+    if (!productData) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    const updateProductData = await Product.findByIdAndUpdate(
+      productId,
+      { $set: { isBlocked: !productData.isBlocked } },
+      { new: true }
+    );
+
+    if (updateProductData.isBlocked) {
+      await storeRefreshToken(updateProductData._id, null);
+    }
+
+    res.json({
+      success: true,
+      message: `Product status updated to ${
+        updateProductData.isBlocked ? "blocked" : "active"
+      }`,
+      updateProductData,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 // =========================== USER CONTROLLERS ===========================
 // Method GET || GET CATEGORY BASED PRODUCTS
@@ -258,9 +280,10 @@ export const getProducts = async (req, res, next) => {
   }
 };
 
-// METHOD GET || GET A PRODUCT DETIALS
+// METHOD GET || GET A PRODUCT DETAILS
 export const getProductDetails = async (req, res, next) => {
   const { productId } = req.query;
+  console.log(req.query)
 
   try {
     const product = await Product.findById(productId)

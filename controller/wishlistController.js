@@ -5,28 +5,30 @@ import Wishlist from "../model/wishlistModel.js";
 // METHOD GET || FETCH USER WISHLIST
 export const getWishlist = async (req, res, next) => {
   const userId = req.user.id;
-  try {
-    const wishlistItems = await Wishlist.findOne({ user: userId }).populate({
-      path: "products.product",
-      match: { isBlocked: false },
-      populate: [
-        {
-          path: "category",
-          model: "Category",
-        },
-        {
-          path: "brand",
-          model: "brand",
-        },
-      ],
-    });
+  if (userId) {
+    try {
+      const wishlistItems = await Wishlist.findOne({ user: userId }).populate({
+        path: "products.product",
+        match: { isBlocked: false },
+        populate: [
+          {
+            path: "category",
+            model: "Category",
+          },
+          {
+            path: "brand",
+            model: "brand",
+          },
+        ],
+      });
 
-    if (!wishlistItems) {
-      return res.status(404).json({ success: false });
+      if (!wishlistItems) {
+        return res.status(204).json({ success: true });
+      }
+      res.status(200).json({ success: true, wishlists: wishlistItems.products });
+    } catch (error) {
+      next(error);
     }
-    res.json({ success: true, wishlists: wishlistItems.products });
-  } catch (error) {
-    next(error);
   }
 };
 

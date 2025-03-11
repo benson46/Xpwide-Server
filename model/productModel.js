@@ -20,6 +20,11 @@ const productSchema = new mongoose.Schema({
     ref: "Category",
     required: true,
   },
+  price:{
+    type:Number,
+    default:0,
+    required:true,
+  },
   discountedPrice: {
     type: Number,
     default:0,
@@ -84,7 +89,6 @@ const productSchema = new mongoose.Schema({
       },
     },
   ],
-  // Add this to the existing product schema
   activeOffer: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Offer",

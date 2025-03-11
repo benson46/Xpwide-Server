@@ -49,6 +49,7 @@ export const adminLogin = async (req, res, next) => {
     await storeRefreshToken(admin._id, adminRefreshToken);
     setCookies(res, adminAccessToken, adminRefreshToken);
     res.status(200).json({
+      success:true,
       admin: {
         _id: admin._id,
         email: admin.email,
@@ -68,9 +69,17 @@ export const adminLogout = async (req, res, next) => {
     if (adminRefreshToken) {
       await storeRefreshToken(adminId, null);
     }
-    res.clearCookie("adminAccessToken");
-    res.clearCookie("adminRefreshToken");
-    res.json({ message: "Logged out successfully." });
+    res.clearCookie("adminAccessToken", {
+      httpOnly: true,
+      secure: false,
+      sameSite: "Strict",
+    });
+    res.clearCookie("adminRefreshToken", {
+      httpOnly: true,
+      secure: false,
+      sameSite: "Strict",
+    });
+    res.status(200).json({ success:true,message: "Logged out successfully." });
   } catch (error) {
     next(error);
   }

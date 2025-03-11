@@ -20,8 +20,8 @@ import {
 import { getAllCategories } from "../controller/categoryController.js";
 import { isBlockedUser } from "../middleware/isBlockedUser.js";
 import {
-  editProfileDetials,
-  getProfileDetials,
+  editProfileDetails,
+  getProfileDetails,
 } from "../controller/profileController.js";
 import { authenticateUser } from "../middleware/authenticateUser.js";
 import {
@@ -45,9 +45,10 @@ import {
   getAllOrders,
   initiateReturn,
 } from "../controller/orderController.js";
-import { getWalletDetails, updateWalletbalance } from "../controller/walletController.js";
+import { getWalletDetails, updateWalletBalance } from "../controller/walletController.js";
 import { addWishlist, getWishlist } from "../controller/wishlistController.js";
 import { applyCoupon, getPublicCoupons } from "../controller/couponController.js";
+import { searchProductsUser } from "../controller/searchController.js";
 
 const userRouter = express.Router();
 
@@ -60,7 +61,8 @@ userRouter.post("/forgot-password-otp", forgetPasswordOtp);
 userRouter.post("/resend-otp", resendOTP);
 userRouter.post("/verify-otp", verifyOTP);
 userRouter.post("/reset-password", resetPassword);
-userRouter.post("/refresh-token", refreshUserAccessToken);
+
+userRouter.get("/products/search",searchProductsUser)
 
 /* ---------------------------- CATEGORY MANAGEMENT ---------------------------- */
 
@@ -80,8 +82,8 @@ userRouter.get("/related-products", getRelatedProducts);
 
 userRouter
   .route("/profile")
-  .get(authenticateUser, isBlockedUser, getProfileDetials)
-  .put(authenticateUser, isBlockedUser, editProfileDetials);
+  .get(authenticateUser, isBlockedUser, getProfileDetails)
+  .put(authenticateUser, isBlockedUser, editProfileDetails);
 
 userRouter.post("/change-password", isBlockedUser, changePassword);
 
@@ -131,16 +133,16 @@ userRouter.patch("/orders/:orderId/return/:productId", initiateReturn);
 userRouter
   .route('/wallet')
   .get(authenticateUser, getWalletDetails)
-  .put(authenticateUser, updateWalletbalance);
+  .put(authenticateUser, updateWalletBalance);
 
 /* ---------------------------- WISHLIST MANAGEMENT ---------------------------- */
 
-userRouter.get('/get-wishlist', authenticateUser, getWishlist);
-userRouter.post('/add-wishlist', authenticateUser, addWishlist);
+userRouter.get('/get-wishlist', authenticateUser,isBlockedUser, getWishlist);
+userRouter.post('/add-wishlist', authenticateUser,isBlockedUser, addWishlist);
 
 /* ---------------------------- COUPON MANAGEMENT ---------------------------- */
 userRouter.get('/coupon/public',getPublicCoupons)
-userRouter.post("/coupon/apply", applyCoupon);
+userRouter.post("/coupon/apply", authenticateUser,applyCoupon);
 
 /* ---------------------------- USER INFO ---------------------------- */
 
