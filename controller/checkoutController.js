@@ -85,7 +85,7 @@ export const getCartItems = async (req, res, next) => {
 export const checkoutOrderSuccess = async (req, res, next) => {
   try {
     console.log(req.body)
-    const { products, paymentMethod, addressId,couponCode } = req.body;
+    const { products, paymentMethod, addressId,couponCode,couponId } = req.body;
     const userId = req.user.id;
     if (!products?.length) {
       return res.status(400).json({ message: "No products in order." });
@@ -98,42 +98,35 @@ export const checkoutOrderSuccess = async (req, res, next) => {
         )}`,
       });
     }
-    const processedProducts = await Promise.all(
-      products.map(async (item) => {
-        const product = await Product.findById(item.productId);
-        if (!product) {
-          throw new Error(`Product with id ${item.productId} not found.`);
-        }
 
-        // Validate stock availability early
-        if (product.stock < item.quantity) {
-          throw new Error(`Insufficient stock for product: ${product.name}`);
-        }
+const processedProducts = await Promise.all(
+  products.map(async (item) => {
+    const product = await Product.findById(item.productId);
+    if (!product) {
+      throw new Error(`Product with id ${item.productId} not found.`);
+    }
+    
+    // Validate stock availability
+    if (product.stock < item.quantity) {
+      throw new Error(`Insufficient stock for product: ${product.name}`);
+    }
+    
+    // Directly use the productPrice from the frontend
+    const price = item.productPrice;
+    
+    return {
+      productId: item.productId,
+      name: product.name,
+      productPrice: price,
+      quantity: item.quantity,
+      price,              // Final price for the product
+      discount: 0,        // No additional discount calculation here
+    };
+  })
+);
 
-        const pricing = await calculateBestOffer(product);
+const recalculatedTotalAmount = req.body.totalAmount;
 
-        const hasOffer = pricing.hasOffer;
-        const originalPrice = product._doc.price;
-        const price = hasOffer ? pricing.discountedPrice : originalPrice;
-        const discount = hasOffer ? originalPrice - pricing.discountedPrice : 0;
-        return {
-          productId: item.productId,
-          name: product.name,
-          productPrice: originalPrice - discount,
-          quantity: item.quantity,
-          originalPrice,
-          price,
-          discount,
-        };
-      })
-    );
-
-    const recalculatedTotalAmount = processedProducts.reduce((total, item) => {
-      if (!Number.isFinite(item.price) || !Number.isFinite(item.quantity)) {
-        throw new Error(`Invalid price or quantity for product: ${item.name}`);
-      }
-      return total + item.price * item.quantity;
-    }, 0);
 
     if (paymentMethod === "Wallet") {
       const wallet = await Wallet.findOne({ user: userId });
@@ -245,21 +238,25 @@ export const checkoutOrderSuccess = async (req, res, next) => {
 
     await SalesReport.create({
       orderId: order._id,
-      product: processedProducts.map((item) => ({
+      addressId: req.body.addressId,         // Include address ID from the frontend
+      couponCode: req.body.couponCode || null, // Include coupon code if provided
+      couponId: req.body.couponId || null,     // Include coupon ID if provided
+      products: processedProducts.map((item) => ({
         productId: item.productId,
         productName: item.name,
         quantity: item.quantity,
-        unitPrice: item.originalPrice,
-        totalPrice: item.price * item.quantity,
+        unitPrice: item.originalPrice,                // Use originalPrice from frontend as the unit price
+        totalPrice: item.originalPrice * item.quantity, // Calculate total price per product
         discount: item.discount,
-        couponDeduction: 0,
+        couponDeduction: 0, // Adjust this if coupon deductions need to be applied per product
       })),
-      finalAmount: newTotal,
+      finalAmount: req.body.totalAmount, // Use totalAmount from the frontend
       orderDate: new Date(),
       customer: userId,
       paymentMethod,
       deliveryStatus: "Pending",
     });
+    
 
     await Cart.findOneAndUpdate({ userId }, { $set: { items: [] } });
     return res.status(201).json({

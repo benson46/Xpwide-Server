@@ -199,6 +199,7 @@ export const applyCoupon = async (req, res,next) => {
     res
       .status(200)
       .json({
+        coupon:coupon._id,
         message: "Coupon applied successfully!",
         discountAmount,
         newTotal,

@@ -141,8 +141,8 @@ userRouter.get('/get-wishlist', authenticateUser,isBlockedUser, getWishlist);
 userRouter.post('/add-wishlist', authenticateUser,isBlockedUser, addWishlist);
 
 /* ---------------------------- COUPON MANAGEMENT ---------------------------- */
-userRouter.get('/coupon/public',getPublicCoupons)
-userRouter.post("/coupon/apply", authenticateUser,applyCoupon);
+userRouter.get('/coupon/public',authenticateUser,isBlockedUser,getPublicCoupons)
+userRouter.post("/coupon/apply", authenticateUser,isBlockedUser,applyCoupon);
 
 /* ---------------------------- USER INFO ---------------------------- */
 
