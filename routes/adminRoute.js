@@ -164,9 +164,7 @@ adminRouter.put(
 
 // METHOD PATCH || HANDLE RETURN REQUEST
 adminRouter.patch(
-  "/orders/:orderId/handle-return/:productId",
-  handleReturnRequest
-);
+  "/orders/:orderId/handle-return/:productId",authenticateAdmin,handleReturnRequest);
 
 /* ---------------------------- COUPON MANAGEMENT ---------------------------- */
 
@@ -202,13 +200,13 @@ adminRouter.delete("/offers/:id", authenticateAdmin, deleteOffer);
 
 /* ---------------------------- SALES MANAGEMENT ---------------------------- */
 // METHOD GET || SALES REPORT
-adminRouter.get("/sales-report", getSalesReport);
+adminRouter.get("/sales-report",authenticateAdmin, getSalesReport);
 
 // METHOD GET || DOWNLOAD SALES REPORT PDF
-adminRouter.get("/download-report/pdf", downloadPDFReport);
+adminRouter.get("/download-report/pdf",authenticateAdmin, downloadPDFReport);
 
 // METHOD GET || DOWNLOAD SALES REPORT EXCEL
-adminRouter.get("/download-report/excel", downloadExcelReport);
+adminRouter.get("/download-report/excel",authenticateAdmin, downloadExcelReport);
 
 /* ---------------------------- BANNER MANAGEMENT ---------------------------- */
 adminRouter.route('/banners')

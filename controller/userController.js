@@ -361,7 +361,7 @@ export const changePassword = async (req, res, next) => {
 export const logout = async (req, res, next) => {
   try {
     const refreshToken = req.cookies.refreshToken;
-    const userId = JSON.stringify(req.body.userId);
+    const userId = req.user.id
     if (refreshToken) {
       await storeRefreshToken(userId, null);
     }

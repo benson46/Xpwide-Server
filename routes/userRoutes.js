@@ -55,7 +55,7 @@ const userRouter = express.Router();
 /* ---------------------------- USER AUTH ---------------------------- */
 
 userRouter.post("/login", login);
-userRouter.post("/logout", logout);
+userRouter.post("/logout",authenticateUser, logout);
 userRouter.post("/send-otp", sendOtp);
 userRouter.post("/forgot-password-otp", forgetPasswordOtp);
 userRouter.post("/resend-otp", resendOTP);
@@ -66,13 +66,13 @@ userRouter.get("/products/search",searchProductsUser)
 
 /* ---------------------------- CATEGORY MANAGEMENT ---------------------------- */
 
-userRouter.get("/category", isBlockedUser, getAllCategories);
+userRouter.get("/category", getAllCategories);
 
 /* ---------------------------- PRODUCT MANAGEMENT ---------------------------- */
 
 userRouter
   .route("/products")
-  .get(isBlockedUser, getProducts);
+  .get( getProducts);
 
 userRouter.get("/product", getProductDetails);
 userRouter.get("/featured-products", getFeaturedProducts);

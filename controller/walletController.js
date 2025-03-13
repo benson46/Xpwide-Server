@@ -50,7 +50,7 @@ export const updateWalletBalance = async (req, res,next) => {
     description:
       type === "credit"
         ? `Added ₹${amount} to wallet`
-        : `Spent ₹${amount} for ${productNames}`,
+        : `Spent ₹${amount} for buying product`,//${productNames}
     amount: amount,
   };
   try {

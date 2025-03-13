@@ -30,7 +30,7 @@ export const getAllOrdersAdmin = async (req, res, next) => {
         quantity: p.quantity,
         status: p.status,
       })),
-      paymentMethod:order.paymentMethod,
+      paymentMethod: order.paymentMethod,
       totalAmount: order.totalAmount,
       status: order.status,
       createdAt: order.createdAt,
@@ -142,7 +142,7 @@ export const handleReturnRequest = async (req, res, next) => {
     // Process the return request based on action
     if (action === "approve") {
       product.status = "Return Approved";
-      
+
       if (
         order.paymentMethod !== "COD" ||
         (order.paymentMethod === "COD" && order.status === "Delivered")
@@ -158,6 +158,7 @@ export const handleReturnRequest = async (req, res, next) => {
                 transactionType: "credit",
                 transactionStatus: "completed",
                 amount: totalAmount,
+                description: `refunded  ₹${totalAmount} from your order`,
               },
             },
           },
@@ -182,7 +183,6 @@ export const handleReturnRequest = async (req, res, next) => {
     next(error);
   }
 };
-
 
 // =========================== USER CONTROLLERS ============================
 // METHOD GET || Get user's order history
@@ -268,7 +268,6 @@ export const cancelOrderItem = async (req, res, next) => {
     const order = await Order.findById(orderId).populate("products.productId");
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    console.log(order)
     const product = order.products.find(
       (p) => p.productId && p.productId._id.toString() === productId
     );
@@ -287,15 +286,16 @@ export const cancelOrderItem = async (req, res, next) => {
       order.status = "Cancelled";
     }
 
-    if(order.paymentMethod !== 'COD'){
+    if (order.paymentMethod !== "COD") {
       let userWallet = await Wallet.findOne({ user: order.userId });
       if (!userWallet) {
         userWallet = new Wallet({ user: order.userId, balance: 0 });
       }
-      console.log('hiiiii',product)
+
       const refundAmount = product.productId.discountedPrice * product.quantity;
       userWallet.balance += Number(refundAmount);
-      await userWallet.save();}
+      await userWallet.save();
+    }
     await order.save();
 
     await SalesReport.updateOne(
@@ -305,7 +305,7 @@ export const cancelOrderItem = async (req, res, next) => {
 
     res.json({
       message: "Product cancelled and amount added to wallet",
-      order
+      order,
     });
   } catch (error) {
     console.error("Error cancelling product:", error);

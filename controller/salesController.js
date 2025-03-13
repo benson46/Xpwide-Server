@@ -117,13 +117,12 @@ export const getSalesReport = async (req, res, next) => {
   }
 };
 
-// METHOD GET || DOWLOAD SALES REPORT PDF
+// METHOD GET || DOWNLOAD SALES REPORT PDF
 export const downloadPDFReport = async (req, res, next) => {
   try {
     const { period, startDate, endDate } = req.query;
     const filter = getDateFilter(period, startDate, endDate);
     
-    // Fix: Corrected the typo from "prodcut" to "product"
     const reports = await SalesReport.find(filter)
       .populate({
         path: "product.productId",
@@ -161,7 +160,7 @@ export const downloadPDFReport = async (req, res, next) => {
     );
     doc.fontSize(12)
        .text(`Total Orders: ${totalOrders}`)
-       .text(`Total Amount: $${totalAmount.toFixed(2)}`)
+       .text(`Total Amount: ${totalAmount}`)
        .moveDown();
 
     // Build table rows – one row per product entry (matching Excel export)
@@ -173,9 +172,9 @@ export const downloadPDFReport = async (req, res, next) => {
           report.customer?.firstName || "N/A",              // Customer
           product.productId?.name || product.productName,   // Product Name
           product.quantity,                                 // Quantity
-          `$${product.unitPrice.toFixed(2)}`,               // Unit Price
-          `$${product.discount.toFixed(2)}`,                // Discount
-          `$${product.totalPrice.toFixed(2)}`,              // Total Price
+          `${product.unitPrice.toFixed(2)}`,               // Unit Price
+          `${product.discount.toFixed(2)}`,                // Discount
+          `${product.totalPrice.toFixed(2)}`,              // Total Price
           report.paymentMethod,                             // Payment Method
           report.deliveryStatus                             // Status
         ]);
@@ -212,7 +211,7 @@ export const downloadPDFReport = async (req, res, next) => {
 };
 
 
-// METHOD GET || DOWLOAD SALES REPORT EXCEL
+// METHOD GET || DOWNLOAD SALES REPORT EXCEL
 export const downloadExcelReport = async (req, res, next) => {
   try {
     const { period, startDate, endDate } = req.query;
