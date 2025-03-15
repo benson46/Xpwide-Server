@@ -70,26 +70,26 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Pre-Save Hook to Fetch Discount Price from Product Model
 orderSchema.pre("save", async function (next) {
   try {
     for (let product of this.products) {
-      // Fetch the product's discount price at the time of order
       const productData = await mongoose
         .model("Product")
         .findById(product.productId)
-        .select("discountPrice");
+        .select("price discountedPrice hasOffer");
 
       if (productData) {
-        product.discountPrice = productData.discountPrice; // Store discount price at time of order
+        // Use discounted price if offer exists, else regular price
+        const priceToUse = productData.hasOffer 
+          ? productData.discountedPrice 
+          : productData.price;
       } else {
         return next(new Error(`Product not found: ${product.productId}`));
       }
     }
-
     next();
   } catch (error) {
-    console.error("Error fetching discount price:", error);
+    console.error("Error fetching product price:", error);
     next(error);
   }
 });

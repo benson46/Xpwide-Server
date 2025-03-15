@@ -365,15 +365,14 @@ export const getFeaturedProducts = async (req, res, next) => {
 // METHOD GET || GET RELATED PRODUCTS
 export const getRelatedProducts = async (req, res, next) => {
   try {
-    const { categoryId, brandId, productId } = req.query;
+    const { categoryId, productId } = req.query;
 
-    if (!categoryId || !brandId) {
+    if (!categoryId) {
       return res.status(400).json({ message: "Missing categoryId or brandId" });
     }
 
     let relatedProducts = await Product.find({
       category: categoryId,
-      brand: brandId,
       isBlocked: false,
       _id: { $ne: productId },
     }).limit(3);

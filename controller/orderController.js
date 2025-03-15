@@ -3,6 +3,8 @@ import Order from "../model/orderModel.js";
 import Product from "../model/productModel.js";
 import Wallet from "../model/walletModel.js";
 import SalesReport from "../model/salesModel.js";
+import PDFDocument from 'pdfkit-table';
+
 // _______________________________________________________________________//
 
 // =========================== ADMIN CONTROLLERS ===========================
@@ -25,7 +27,7 @@ export const getAllOrdersAdmin = async (req, res, next) => {
       products: order.products.map((p) => ({
         productId: p.productId._id,
         name: p.productId.name,
-        price: p.productId.price,
+        price: p.productPrice,
         image: p.productId.image,
         quantity: p.quantity,
         status: p.status,
@@ -35,7 +37,7 @@ export const getAllOrdersAdmin = async (req, res, next) => {
       status: order.status,
       createdAt: order.createdAt,
     }));
-
+    
     res.status(200).json({ orders: processedOrders, totalOrders });
   } catch (error) {
     console.error("Error fetching orders:", error);
@@ -118,66 +120,48 @@ export const handleReturnRequest = async (req, res, next) => {
     const { orderId, productId } = req.params;
     const { action } = req.body;
 
-    // Fetch the order
     const order = await Order.findById(orderId);
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
+    if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // Find the specific product within the order
     const product = order.products.find(
-      (p) => p.productId.toString() === productId.toString()
+      (p) => p.productId.toString() === productId
     );
-    if (!product) {
-      return res.status(404).json({ message: "Product not found in order" });
-    }
+    if (!product) return res.status(404).json({ message: "Product not found" });
 
-    // Ensure the product is in the "Return Pending" state
     if (product.status !== "Return Pending") {
-      return res
-        .status(400)
-        .json({ message: "Product not in return pending state" });
+      return res.status(400).json({ message: "Product not in return pending state" });
     }
 
-    // Process the return request based on action
     if (action === "approve") {
       product.status = "Return Approved";
 
-      if (
-        order.paymentMethod !== "COD" ||
-        (order.paymentMethod === "COD" && order.status === "Delivered")
-      ) {
-        const totalAmount = product.productPrice * product.quantity;
-        await Wallet.findOneAndUpdate(
-          { user: order.userId },
-          {
-            $inc: { balance: totalAmount },
-            $push: {
-              transactions: {
-                transactionDate: new Date(),
-                transactionType: "credit",
-                transactionStatus: "completed",
-                amount: totalAmount,
-                description: `refunded  ₹${totalAmount} from your order`,
-              },
+      // Process refund for ALL payment methods if product was delivered
+      const totalAmount = product.productPrice * product.quantity;
+      
+      await Wallet.findOneAndUpdate(
+        { user: order.userId },
+        {
+          $inc: { balance: totalAmount },
+          $push: {
+            transactions: {
+              transactionDate: new Date(),
+              transactionType: "credit",
+              transactionStatus: "completed",
+              amount: totalAmount,
+              description: `Refund for approved return of a product`,
             },
           },
-          { new: true, upsert: true }
-        );
-      }
+        },
+        { new: true, upsert: true }
+      );
     } else if (action === "reject") {
       product.status = "Return Rejected";
     } else {
       return res.status(400).json({ message: "Invalid action" });
     }
 
-    // Save the updated order
     await order.save();
-    res.json({
-      success: true,
-      message: `Return request ${action}ed`,
-      order,
-    });
+    res.json({ success: true, message: `Return ${action}d`, order });
   } catch (error) {
     console.error("Error handling return request:", error);
     next(error);
@@ -205,6 +189,7 @@ export const getAllOrders = async (req, res, next) => {
             } else {
               groupedProducts[product.productId] = {
                 ...productDetails.toObject(),
+                price: product.productPrice, 
                 quantity: product.quantity,
                 status: product.status,
                 deliveryDate: product.deliveryDate || null,

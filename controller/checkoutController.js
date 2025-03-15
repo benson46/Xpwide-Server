@@ -64,7 +64,6 @@ export const getCartItems = async (req, res, next) => {
       (sum, item) => sum + item.productId.price * item.quantity,
       0
     );
-    console.log(originalPrice);
 
     res.status(200).json({
       items: updatedItems,
@@ -84,8 +83,8 @@ export const getCartItems = async (req, res, next) => {
 // METHOD POST || Process checkout order
 export const checkoutOrderSuccess = async (req, res, next) => {
   try {
-    console.log(req.body)
-    const { products, paymentMethod, addressId,couponCode,couponId } = req.body;
+    const { products, paymentMethod, addressId, couponCode } =
+      req.body;
     const userId = req.user.id;
     if (!products?.length) {
       return res.status(400).json({ message: "No products in order." });
@@ -99,60 +98,44 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       });
     }
 
-const processedProducts = await Promise.all(
-  products.map(async (item) => {
-    const product = await Product.findById(item.productId);
-    if (!product) {
-      throw new Error(`Product with id ${item.productId} not found.`);
-    }
-    
-    // Validate stock availability
-    if (product.stock < item.quantity) {
-      throw new Error(`Insufficient stock for product: ${product.name}`);
-    }
-    
-    // Directly use the productPrice from the frontend
-    const price = item.productPrice;
-    
-    return {
-      productId: item.productId,
-      name: product.name,
-      productPrice: price,
-      quantity: item.quantity,
-      price,              // Final price for the product
-      discount: 0,        // No additional discount calculation here
-    };
-  })
-);
+    const processedProducts = await Promise.all(
+      products.map(async (item) => {
+        const product = await Product.findById(item.productId);
+        if (!product) {
+          throw new Error(`Product with id ${item.productId} not found.`);
+        }
 
-const recalculatedTotalAmount = req.body.totalAmount;
+        // Validate stock availability
+        if (product.stock < item.quantity) {
+          throw new Error(`Insufficient stock for product: ${product.name}`);
+        }
 
+
+        return {
+          productId: item.productId,
+          name: product.name,
+          productPrice: item.productPrice,
+          quantity: item.quantity
+        };
+      })
+    );
+
+    const recalculatedTotalAmount = req.body.totalAmount;
 
     if (paymentMethod === "Wallet") {
-      const wallet = await Wallet.findOne({ user: userId });
-      if (!wallet?.balance || wallet.balance < recalculatedTotalAmount) {
-        return res
-          .status(400)
-          .json({ message: "Insufficient wallet balance." });
-      }
+      
+      const wallet = await Wallet.findOne({
+        user: userId,
+        "transactions.amount": recalculatedTotalAmount,
+        "transactions.transactionType": "debit",
+        "transactions.transactionStatus": "completed",
+      });
 
-      await Wallet.findOneAndUpdate(
-        { user: userId },
-        {
-          $inc: { balance: -recalculatedTotalAmount },
-          $push: {
-            transactions: {
-              orderId: new mongoose.Types.ObjectId(),
-              transactionDate: new Date(),
-              transactionType: "debit",
-              transactionStatus: "completed",
-              amount: recalculatedTotalAmount,
-              description: `Paid ₹${recalculatedTotalAmount} for order`,
-            },
-          },
-        },
-        { new: true, runValidators: true }
-      );
+      if (!wallet) {
+        return res.status(400).json({
+          message: "Wallet transaction verification failed. Order not placed.",
+        });
+      }
     }
 
     await Promise.all(
@@ -163,7 +146,6 @@ const recalculatedTotalAmount = req.body.totalAmount;
       )
     );
 
-
     let discountAmount = 0;
     let couponUsed = null;
 
@@ -173,7 +155,6 @@ const recalculatedTotalAmount = req.body.totalAmount;
         return res.status(400).json({ message: "Invalid coupon code." });
       }
 
-      // Re-validate coupon
       if (
         !couponUsed.isActive ||
         (couponUsed.expiryDate && new Date(couponUsed.expiryDate) < new Date())
@@ -207,9 +188,6 @@ const recalculatedTotalAmount = req.body.totalAmount;
 
       // Calculate discount
       discountAmount = (recalculatedTotalAmount * couponUsed.discount) / 100;
-      if (couponUsed.maxDiscount && discountAmount > couponUsed.maxDiscount) {
-        discountAmount = couponUsed.maxDiscount;
-      }
 
       // Update coupon usage
       couponUsed.usageCount += 1;
@@ -223,43 +201,40 @@ const recalculatedTotalAmount = req.body.totalAmount;
       await couponUsed.save();
     }
 
-    const newTotal = recalculatedTotalAmount - discountAmount;
-
-
     const order = await Order.create({
       addressId,
       paymentMethod,
       products: processedProducts,
       userId,
-      totalAmount: newTotal,
+      totalAmount: recalculatedTotalAmount,
       status: "Pending",
       couponCode: couponCode || null,
     });
 
     await SalesReport.create({
       orderId: order._id,
-      addressId: req.body.addressId,         // Include address ID from the frontend
-      couponCode: req.body.couponCode || null, // Include coupon code if provided
-      couponId: req.body.couponId || null,     // Include coupon ID if provided
+      addressId: req.body.addressId,
+      couponCode: req.body.couponCode || null,
+      couponId: req.body.couponId || null,
       products: processedProducts.map((item) => ({
         productId: item.productId,
         productName: item.name,
         quantity: item.quantity,
-        unitPrice: item.originalPrice,                // Use originalPrice from frontend as the unit price
-        totalPrice: item.originalPrice * item.quantity, // Calculate total price per product
+        unitPrice: item.originalPrice,
+        totalPrice: item.originalPrice * item.quantity,
         discount: item.discount,
-        couponDeduction: 0, // Adjust this if coupon deductions need to be applied per product
+        couponDeduction: 0,
       })),
-      finalAmount: req.body.totalAmount, // Use totalAmount from the frontend
+      finalAmount: req.body.totalAmount,
       orderDate: new Date(),
       customer: userId,
       paymentMethod,
       deliveryStatus: "Pending",
     });
-    
 
     await Cart.findOneAndUpdate({ userId }, { $set: { items: [] } });
     return res.status(201).json({
+      success: true,
       message: "Order placed successfully.",
       order,
       totalAmount: recalculatedTotalAmount,

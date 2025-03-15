@@ -5,7 +5,6 @@ import {
   getUserSpecificInfo,
   login,
   logout,
-  refreshUserAccessToken,
   resendOTP,
   resetPassword,
   sendOtp,
