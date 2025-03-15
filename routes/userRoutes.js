@@ -41,6 +41,7 @@ import {
 } from "../controller/checkoutController.js";
 import {
   cancelOrderItem,
+  generateInvoice,
   getAllOrders,
   initiateReturn,
 } from "../controller/orderController.js";
@@ -126,7 +127,7 @@ userRouter.patch(
   cancelOrderItem
 );
 userRouter.patch("/orders/:orderId/return/:productId", initiateReturn);
-
+userRouter.get('/orders/:orderId/invoice',generateInvoice)
 /* ---------------------------- WALLET MANAGEMENT ---------------------------- */
 
 userRouter

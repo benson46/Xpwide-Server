@@ -166,6 +166,7 @@ export const downloadPDFReport = async (req, res, next) => {
     // Build table rows – one row per product entry (matching Excel export)
     const rows = [];
     reports.forEach((report) => {
+      console.log(report)
       report.product.forEach((product) => {
         rows.push([
           new Date(report.orderDate).toLocaleDateString(), // Order Date

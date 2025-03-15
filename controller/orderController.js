@@ -4,6 +4,8 @@ import Product from "../model/productModel.js";
 import Wallet from "../model/walletModel.js";
 import SalesReport from "../model/salesModel.js";
 import PDFDocument from 'pdfkit-table';
+import path from 'path';
+
 
 // _______________________________________________________________________//
 
@@ -243,6 +245,182 @@ export const initiateReturn = async (req, res, next) => {
     next(error);
   }
 };
+
+
+
+export const generateInvoice = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.orderId)
+      .populate('userId', 'firstName lastName email')
+      .populate('addressId')
+      .populate('products.productId');
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+    const brandColor = '#1a237e';
+    const lightBrand = '#e8eaf6';
+
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=invoice-${order._id}.pdf`);
+
+    // Error handling
+    doc.on('error', (err) => {
+      console.error('PDF stream error:', err);
+      if (!res.headersSent) {
+        res.status(500).end();
+      }
+    });
+
+    doc.pipe(res);
+
+    // ========== HEADER SECTION ==========
+    try {
+      const logoPath = path.join(process.cwd(), 'public', 'images', 'Logo.png');
+      doc.image(logoPath, 50, 45, { width: 100 });
+    } catch (err) {
+      console.log('Logo not found, proceeding without it');
+    }
+
+    doc.fillColor(brandColor)
+      .fontSize(20)
+      .font('Helvetica-Bold')
+      .text('XPWIDE Pvt. Ltd.', 200, 65)
+      .fontSize(10)
+      .font('Helvetica')
+      .text('123 Business Street', 200, 90)
+      .text('New Delhi, India - 110001', 200, 105)
+      .text('xpwidestore@gmail.com | +91 98765 43210', 200, 120)
+      .moveTo(50, 160)
+      .lineTo(550, 160)
+      .lineWidth(2)
+      .strokeColor(brandColor)
+      .stroke();
+
+    // ========== INVOICE METADATA ==========
+    doc.fontSize(15)
+      .font('Helvetica-Bold')
+      .fillColor(brandColor)
+      .fontSize(10)
+      .fillColor('#333')
+      .text(`Invoice #: ${order._id}`, 50, 180)
+      .text(`Date: ${new Date(order.createdAt).toLocaleDateString()}`, 50, 195)
+      .text(`Payment Method: ${order.paymentMethod.toUpperCase()}`, 50, 210)
+      .moveDown(2);
+
+    // ========== CUSTOMER DETAILS ==========
+    doc.fontSize(12)
+      .font('Helvetica-Bold')
+      .fillColor(brandColor)
+      .text('BILL TO:', 50, 260)
+      .font('Helvetica')
+      .fillColor('#333')
+      .text(order.addressId.name, 50, 280)
+      .text(order.userId.email, 50, 295)
+      .text(`${order.addressId.address}, ${order.addressId.city}`, 50, 310)
+      .text(`${order.addressId.state} - ${order.addressId.pincode}`, 50, 325);
+
+    // ========== PRODUCT TABLE ==========
+    const tableTop = 380;
+    const colPositions = {
+      sno: 50,
+      desc: 100,
+      qty: 350,
+      price: 420,
+      total: 500
+    };
+
+    // Table Header
+    doc.rect(colPositions.sno, tableTop, 500, 25)
+      .fillColor(lightBrand)
+      .fill()
+      .fontSize(12)
+      .font('Helvetica-Bold')
+      .fillColor(brandColor)
+      .text('#', colPositions.sno + 10, tableTop + 5)
+      .text('PRODUCTS', colPositions.desc, tableTop + 5)
+      .text('QTY', colPositions.qty, tableTop + 5)
+      .text('PRICE', colPositions.price, tableTop + 5)
+      .text('TOTAL', colPositions.total, tableTop + 5);
+
+    // Table Rows
+    let y = tableTop + 30;
+    order.products.forEach((item, index) => {
+      const rowColor = index % 2 === 0 ? '#f5f5f5' : '#fff';
+      const itemTotal = item.quantity * item.productPrice;
+      
+      doc.rect(colPositions.sno, y, 500, 25)
+        .fillColor(rowColor)
+        .fill();
+
+      doc.fontSize(10)
+        .fillColor('#333')
+        .font('Helvetica')
+        .text(index + 1, colPositions.sno + 10, y + 5)
+        .text(item.productId.name, colPositions.desc, y + 5)
+        .text(item.quantity, colPositions.qty, y + 5)
+        doc.font('Courier').text(formatCurrency(item.productPrice), colPositions.price, y + 5);
+        doc.font('Courier').text(formatCurrency(itemTotal), colPositions.total, y + 5);
+        
+      y += 25;
+    });
+
+    // ========== TOTAL SECTION ==========
+    doc.fontSize(12)
+      .font('Helvetica-Bold')
+      .fillColor(brandColor)
+      .text('Grand Total:', colPositions.total - 50, y + 60)
+      .font('Helvetica')
+      .fillColor('#333')
+      doc.font('Courier').text(formatCurrency(order.totalAmount), colPositions.total, y + 60);
+
+
+    // ========== FOOTER ==========
+    doc.moveDown(4)
+      .fontSize(10)
+      .fillColor('#666')
+      .text('Terms & Conditions:', 50, doc.page.height - 100)
+      .text('1. Goods once sold will not be taken back.', 50, doc.page.height - 85)
+      .text('2. All disputes subject to Delhi jurisdiction.', 50, doc.page.height - 70)
+      .text('Thank you for your business!', 400, doc.page.height - 70, { align: 'right' })
+      .text('Authorized Signature', 400, doc.page.height - 55, { align: 'right' });
+
+    // Add page numbers
+    const addPageNumbers = () => {
+      try {
+        const pages = doc.bufferedPageRange();
+        for (let i = pages.start; i < pages.start + pages.count; i++) {
+          doc.switchToPage(i);
+          doc.fontSize(8)
+            .fillColor('#666')
+            .text(`Page ${i - pages.start + 1} of ${pages.count}`, 50, doc.page.height - 30);
+        }
+      } catch (err) {
+        console.error('Error adding page numbers:', err);
+      }
+    };
+
+    addPageNumbers();
+
+    doc.end();
+
+  } catch (error) {
+    console.error('Error generating invoice:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ message: 'Error generating invoice' });
+    }
+  }
+};
+
+// Currency formatting helper
+const formatCurrency = (amount) => {
+  return '\u20B9' + amount.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+};
+
+
 
 // =========================== COMMON CONTROLLERS ==========================
 // METHOD PATCH || Cancel order item
