@@ -25,9 +25,9 @@ const orderSchema = new mongoose.Schema(
           ref: "Product",
           required: true,
         },
-        productPrice:{
-          type:Number,
-          required:true,
+        productPrice: {
+          type: Number,
+          required: true,
         },
         quantity: {
           type: Number,
@@ -62,6 +62,11 @@ const orderSchema = new mongoose.Schema(
       enum: ["Pending", "Shipped", "Delivered", "Cancelled"],
       default: "Pending",
     },
+    paymentStatus: {
+      type: String,
+      enum: ["Pending", "Success", "Failed"],
+      default: "Pending",
+    },
     deliveryDate: {
       type: Date,
       default: null,
@@ -69,6 +74,7 @@ const orderSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
 
 orderSchema.pre("save", async function (next) {
   try {

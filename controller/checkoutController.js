@@ -83,8 +83,9 @@ export const getCartItems = async (req, res, next) => {
 // METHOD POST || Process checkout order
 export const checkoutOrderSuccess = async (req, res, next) => {
   try {
-    const { products, paymentMethod, addressId, couponCode } =
+    const { products, paymentMethod, addressId, couponCode, totalAmount, paymentStatus} =
       req.body;
+      console.log(paymentStatus)
     const userId = req.user.id;
     if (!products?.length) {
       return res.status(400).json({ message: "No products in order." });
@@ -95,6 +96,12 @@ export const checkoutOrderSuccess = async (req, res, next) => {
         message: `Invalid payment method. Must be one of: ${validPaymentMethods.join(
           ", "
         )}`,
+      });
+    }
+
+    if (paymentMethod === "COD" && totalAmount > 1000) {
+      return res.status(400).json({
+        message: "Cash on Delivery is not available for orders above ₹1000.",
       });
     }
 
@@ -110,23 +117,19 @@ export const checkoutOrderSuccess = async (req, res, next) => {
           throw new Error(`Insufficient stock for product: ${product.name}`);
         }
 
-
         return {
           productId: item.productId,
           name: product.name,
           productPrice: item.productPrice,
-          quantity: item.quantity
+          quantity: item.quantity,
         };
       })
     );
 
-    const recalculatedTotalAmount = req.body.totalAmount;
-
     if (paymentMethod === "Wallet") {
-      
       const wallet = await Wallet.findOne({
         user: userId,
-        "transactions.amount": recalculatedTotalAmount,
+        "transactions.amount": totalAmount,
         "transactions.transactionType": "debit",
         "transactions.transactionStatus": "completed",
       });
@@ -162,7 +165,7 @@ export const checkoutOrderSuccess = async (req, res, next) => {
         return res.status(400).json({ message: "Coupon is not valid." });
       }
 
-      if (recalculatedTotalAmount < couponUsed.minPurchaseAmount) {
+      if (totalAmount < couponUsed.minPurchaseAmount) {
         return res.status(400).json({
           message: `Minimum purchase amount for this coupon is ₹${couponUsed.minPurchaseAmount}.`,
         });
@@ -187,7 +190,7 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       }
 
       // Calculate discount
-      discountAmount = (recalculatedTotalAmount * couponUsed.discount) / 100;
+      discountAmount = (totalAmount * couponUsed.discount) / 100;
 
       // Update coupon usage
       couponUsed.usageCount += 1;
@@ -206,8 +209,9 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       paymentMethod,
       products: processedProducts,
       userId,
-      totalAmount: recalculatedTotalAmount,
+      totalAmount: totalAmount,
       status: "Pending",
+      paymentStatus: paymentStatus || "Pending",
       couponCode: couponCode || null,
     });
 
@@ -237,7 +241,7 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       success: true,
       message: "Order placed successfully.",
       order,
-      totalAmount: recalculatedTotalAmount,
+      totalAmount: totalAmount,
     });
   } catch (error) {
     next(error);
