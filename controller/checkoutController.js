@@ -214,8 +214,9 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       paymentStatus: paymentStatus || "Pending",
       couponCode: couponCode || null,
     });
-
-    await SalesReport.create({
+    
+    console.log('processed orders: ',processedProducts)
+    const c = await SalesReport.create({
       orderId: order._id,
       addressId: req.body.addressId,
       couponCode: req.body.couponCode || null,
@@ -236,6 +237,8 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       deliveryStatus: "Pending",
     });
 
+    console.log('c:   ',c)
+
     await Cart.findOneAndUpdate({ userId }, { $set: { items: [] } });
     return res.status(201).json({
       success: true,
@@ -248,4 +251,96 @@ export const checkoutOrderSuccess = async (req, res, next) => {
   }
 };
 
+export const retryPayment = async (req, res, next) => {
+  try {
+
+    const userId = req.user?.id 
+    const {paymentMethod} = req.body;
+    const { orderId } = req.params;
+
+    
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+
+    let paymentSuccess = false;
+    
+    switch(paymentMethod) {
+      case "Razorpay":
+        return res.status(200).json({
+          amount: order.totalAmount,
+          currency: "INR"
+        });
+
+        case "Wallet":
+          let wallet = await Wallet.findOne({ user: userId });
+        
+          if (!wallet || wallet.balance < order.totalAmount) {
+            return res.status(400).json({ message: "Insufficient balance" });
+          }
+        
+          // Deduct the amount and record the transaction
+          const updatedWallet = await Wallet.findOneAndUpdate(
+            { user: userId },
+            {
+              $inc: { balance: -order.totalAmount },
+              $push: {
+                transactions: {
+                  amount: order.totalAmount,
+                  transactionType: "debit",
+                  transactionStatus: "completed",
+                  timestamp: new Date(),
+                },
+              },
+            },
+            { new: true }  // This ensures you get the updated document
+          );
+        
+          if (!updatedWallet) {
+            return res.status(500).json({ message: "Wallet update failed" });
+          }
+        paymentSuccess = true;
+        break;
+
+      case "COD":
+        if (order.totalAmount > 1000) {
+          return res.status(400).json({
+            message: "Cash on Delivery is not available for orders above ₹1000.",
+          });
+        }
+        paymentSuccess = true;
+        break;
+
+      default:
+        return res.status(400).json({ message: "Invalid method" });
+    }
+
+    if (paymentSuccess) {
+      order.paymentStatus = "Success";
+      await order.save();
+      return res.json({ success: true, order });
+    }
+
+    res.status(400).json({ message: "Payment failed" });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Add to orderController.js
+export const updateOrderPaymentStatus = async (req, res) => {
+  try {
+    const order = await Order.findByIdAndUpdate(
+      req.params.orderId,
+      { paymentStatus: req.body.paymentStatus },
+      { new: true }
+    );
+    res.json({ success: true, order });
+  } catch (error) {
+    res.status(500).json({ message: "Update failed" });
+  }
+};
 // _______________________________________________________________________//

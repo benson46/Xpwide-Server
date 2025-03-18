@@ -57,6 +57,7 @@ import {
 } from "../controller/salesController.js";
 import {searchBrands, searchCategories, searchCoupons, searchProducts, searchUsers } from "../controller/searchController.js";
 import { createBanner, deleteBanner, getBanners, toggleBannerStatus, updateBanner } from "../controller/bannerController.js";
+import { getBestSellingBrands, getBestSellingCategories, getBestSellingProducts, getSalesOverview } from "../controller/dashboardController.js";
 
 const adminRouter = express.Router();
 
@@ -198,6 +199,13 @@ adminRouter.put("/offers/:id", authenticateAdmin, updateOffer);
 // METHOD DELETE || DELETE OFFER
 adminRouter.delete("/offers/:id", authenticateAdmin, deleteOffer);
 
+
+
+/* ---------------------------- chart MANAGEMENT ---------------------------- */
+adminRouter.get("/sales-overview", authenticateAdmin, getSalesOverview);
+adminRouter.get("/best-selling-products", authenticateAdmin, getBestSellingProducts);
+adminRouter.get("/best-selling-categories", authenticateAdmin, getBestSellingCategories);
+adminRouter.get("/best-selling-brands", authenticateAdmin, getBestSellingBrands);
 /* ---------------------------- SALES MANAGEMENT ---------------------------- */
 // METHOD GET || SALES REPORT
 adminRouter.get("/sales-report",authenticateAdmin, getSalesReport);

@@ -166,7 +166,7 @@ export const downloadPDFReport = async (req, res, next) => {
     // Build table rows – one row per product entry (matching Excel export)
     const rows = [];
     reports.forEach((report) => {
-      console.log(report)
+      console.log('reports',report)
       report.product.forEach((product) => {
         rows.push([
           new Date(report.orderDate).toLocaleDateString(), // Order Date
@@ -181,6 +181,8 @@ export const downloadPDFReport = async (req, res, next) => {
         ]);
       });
     });
+
+    console.log('rows is this : ', rows)
 
     // Define table structure matching the Excel headers
     const table = {

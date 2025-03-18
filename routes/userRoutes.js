@@ -38,6 +38,8 @@ import {
 import {
   checkoutOrderSuccess,
   getCartItems,
+  retryPayment,
+  updateOrderPaymentStatus,
 } from "../controller/checkoutController.js";
 import {
   cancelOrderItem,
@@ -128,6 +130,8 @@ userRouter.patch(
 );
 userRouter.patch("/orders/:orderId/return/:productId", initiateReturn);
 userRouter.get('/orders/:orderId/invoice',generateInvoice)
+userRouter.post('/orders/:orderId/retry-payment',authenticateUser,retryPayment)
+userRouter.patch('/orders/:orderId/update-payment-status',authenticateUser,updateOrderPaymentStatus)
 /* ---------------------------- WALLET MANAGEMENT ---------------------------- */
 
 userRouter
