@@ -26,6 +26,13 @@ const salesReportSchema = new mongoose.Schema({
         type: Number,
         required: true,
         min: 1,
+      },category: {
+        type: String,
+        required: true,
+      },
+      brand: {
+        type: String,
+        required: true,
       },
       unitPrice: {
         type: Number,

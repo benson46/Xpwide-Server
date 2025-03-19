@@ -83,9 +83,15 @@ export const getCartItems = async (req, res, next) => {
 // METHOD POST || Process checkout order
 export const checkoutOrderSuccess = async (req, res, next) => {
   try {
-    const { products, paymentMethod, addressId, couponCode, totalAmount, paymentStatus} =
-      req.body;
-      console.log(paymentStatus)
+    const {
+      products,
+      paymentMethod,
+      addressId,
+      couponCode,
+      totalAmount,
+      paymentStatus,
+    } = req.body;
+    console.log(paymentStatus);
     const userId = req.user.id;
     if (!products?.length) {
       return res.status(400).json({ message: "No products in order." });
@@ -107,7 +113,8 @@ export const checkoutOrderSuccess = async (req, res, next) => {
 
     const processedProducts = await Promise.all(
       products.map(async (item) => {
-        const product = await Product.findById(item.productId);
+        const product = await Product.findById(item.productId).populate("category brand") // Add population
+        .lean();;
         if (!product) {
           throw new Error(`Product with id ${item.productId} not found.`);
         }
@@ -116,10 +123,12 @@ export const checkoutOrderSuccess = async (req, res, next) => {
         if (product.stock < item.quantity) {
           throw new Error(`Insufficient stock for product: ${product.name}`);
         }
-
+        console.log('productssssssssss: ',product)
         return {
           productId: item.productId,
           name: product.name,
+          category:product.category.title,
+          brand:product.brand.title,
           productPrice: item.productPrice,
           quantity: item.quantity,
         };
@@ -214,19 +223,21 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       paymentStatus: paymentStatus || "Pending",
       couponCode: couponCode || null,
     });
-    
-    console.log('processed orders: ',processedProducts)
+
+    console.log("processed orders: ", processedProducts);
     const c = await SalesReport.create({
       orderId: order._id,
       addressId: req.body.addressId,
       couponCode: req.body.couponCode || null,
       couponId: req.body.couponId || null,
-      products: processedProducts.map((item) => ({
+      product: processedProducts.map((item) => ({
         productId: item.productId,
         productName: item.name,
+        category: item.category, // Ensure this matches your Product schema
+        brand: item.brand,
         quantity: item.quantity,
-        unitPrice: item.originalPrice,
-        totalPrice: item.originalPrice * item.quantity,
+        unitPrice: item.productPrice,
+        totalPrice: item.productPrice * item.quantity,
         discount: item.discount,
         couponDeduction: 0,
       })),
@@ -237,7 +248,7 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       deliveryStatus: "Pending",
     });
 
-    console.log('c:   ',c)
+    console.log("c:   ", c);
 
     await Cart.findOneAndUpdate({ userId }, { $set: { items: [] } });
     return res.status(201).json({
@@ -253,61 +264,59 @@ export const checkoutOrderSuccess = async (req, res, next) => {
 
 export const retryPayment = async (req, res, next) => {
   try {
-
-    const userId = req.user?.id 
-    const {paymentMethod} = req.body;
+    const userId = req.user?.id;
+    const { paymentMethod } = req.body;
     const { orderId } = req.params;
 
-    
     const order = await Order.findById(orderId);
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
 
-
     let paymentSuccess = false;
-    
-    switch(paymentMethod) {
+
+    switch (paymentMethod) {
       case "Razorpay":
         return res.status(200).json({
           amount: order.totalAmount,
-          currency: "INR"
+          currency: "INR",
         });
 
-        case "Wallet":
-          let wallet = await Wallet.findOne({ user: userId });
-        
-          if (!wallet || wallet.balance < order.totalAmount) {
-            return res.status(400).json({ message: "Insufficient balance" });
-          }
-        
-          // Deduct the amount and record the transaction
-          const updatedWallet = await Wallet.findOneAndUpdate(
-            { user: userId },
-            {
-              $inc: { balance: -order.totalAmount },
-              $push: {
-                transactions: {
-                  amount: order.totalAmount,
-                  transactionType: "debit",
-                  transactionStatus: "completed",
-                  timestamp: new Date(),
-                },
+      case "Wallet":
+        let wallet = await Wallet.findOne({ user: userId });
+
+        if (!wallet || wallet.balance < order.totalAmount) {
+          return res.status(400).json({ message: "Insufficient balance" });
+        }
+
+        // Deduct the amount and record the transaction
+        const updatedWallet = await Wallet.findOneAndUpdate(
+          { user: userId },
+          {
+            $inc: { balance: -order.totalAmount },
+            $push: {
+              transactions: {
+                amount: order.totalAmount,
+                transactionType: "debit",
+                transactionStatus: "completed",
+                timestamp: new Date(),
               },
             },
-            { new: true }  // This ensures you get the updated document
-          );
-        
-          if (!updatedWallet) {
-            return res.status(500).json({ message: "Wallet update failed" });
-          }
+          },
+          { new: true } // This ensures you get the updated document
+        );
+
+        if (!updatedWallet) {
+          return res.status(500).json({ message: "Wallet update failed" });
+        }
         paymentSuccess = true;
         break;
 
       case "COD":
         if (order.totalAmount > 1000) {
           return res.status(400).json({
-            message: "Cash on Delivery is not available for orders above ₹1000.",
+            message:
+              "Cash on Delivery is not available for orders above ₹1000.",
           });
         }
         paymentSuccess = true;
@@ -324,7 +333,6 @@ export const retryPayment = async (req, res, next) => {
     }
 
     res.status(400).json({ message: "Payment failed" });
-
   } catch (error) {
     next(error);
   }
