@@ -91,8 +91,9 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       totalAmount,
       paymentStatus,
     } = req.body;
-    console.log(paymentStatus);
+
     const userId = req.user.id;
+
     if (!products?.length) {
       return res.status(400).json({ message: "No products in order." });
     }
@@ -113,8 +114,9 @@ export const checkoutOrderSuccess = async (req, res, next) => {
 
     const processedProducts = await Promise.all(
       products.map(async (item) => {
-        const product = await Product.findById(item.productId).populate("category brand") // Add population
-        .lean();;
+        const product = await Product.findById(item.productId)
+          .populate("category brand") // Add population
+          .lean();
         if (!product) {
           throw new Error(`Product with id ${item.productId} not found.`);
         }
@@ -123,12 +125,12 @@ export const checkoutOrderSuccess = async (req, res, next) => {
         if (product.stock < item.quantity) {
           throw new Error(`Insufficient stock for product: ${product.name}`);
         }
-        console.log('productssssssssss: ',product)
+
         return {
           productId: item.productId,
           name: product.name,
-          category:product.category.title,
-          brand:product.brand.title,
+          category: product.category.title,
+          brand: product.brand.title,
           productPrice: item.productPrice,
           quantity: item.quantity,
         };
@@ -136,19 +138,36 @@ export const checkoutOrderSuccess = async (req, res, next) => {
     );
 
     if (paymentMethod === "Wallet") {
-      const wallet = await Wallet.findOne({
-        user: userId,
-        "transactions.amount": totalAmount,
-        "transactions.transactionType": "debit",
-        "transactions.transactionStatus": "completed",
-      });
-
+      const wallet = await Wallet.findOne({ user: userId });
+    
       if (!wallet) {
         return res.status(400).json({
-          message: "Wallet transaction verification failed. Order not placed.",
+          message: "Wallet not found. Please add funds to proceed.",
         });
       }
+    
+      if (wallet.balance < totalAmount) {
+        return res.status(400).json({
+          message: "Insufficient wallet balance.",
+        });
+      }
+    
+      // Deduct the amount from the wallet
+      wallet.balance -= totalAmount;
+    
+      // Add a transaction entry
+      wallet.transactions.push({
+        orderId: new mongoose.Types.ObjectId(), // Ensure you use the actual orderId later
+        transactionDate: new Date(),
+        transactionType: "debit",
+        transactionStatus: "completed",
+        amount: totalAmount,
+        description: "Order payment using wallet",
+      });
+    
+      await wallet.save(); // Save the updated wallet
     }
+    
 
     await Promise.all(
       processedProducts.map((item) =>
@@ -224,7 +243,6 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       couponCode: couponCode || null,
     });
 
-    console.log("processed orders: ", processedProducts);
     const c = await SalesReport.create({
       orderId: order._id,
       addressId: req.body.addressId,
