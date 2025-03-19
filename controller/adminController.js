@@ -129,29 +129,6 @@ export const updateUserStatus = async (req, res, next) => {
   }
 };
 
-// METHOD POST || REFRESH ADMIN ACCESS TOKEN
-export const refreshAdminAccessToken = async (req, res, next) => {
-  try {
-    const { adminRefreshToken,adminAccessToken } = req.cookies;
-    if(!adminAccessToken){
-      return res.status(403).json({message:"Access token is missing"})
-    }
-    if (!adminRefreshToken) {
-      return res.status(403).json({ message: "Refresh token is missing." });
-    }
-    const decoded = jwt.verify(
-      adminRefreshToken,
-      process.env.REFRESH_TOKEN_SECRET
-    );
-    const storedToken = (await getRefreshToken(decoded.id)).replace(/^"|"$/g, "");
-    if (!storedToken || adminRefreshToken !== storedToken) {
-      return res.status(403).json({ message: "Invalid or mismatched token." });
-    }
-    res.status(200).json({ adminAccessToken: generateAccessToken(decoded) });
-  } catch (error) {
-    next(error);
-  }
-};
 
 // =============================== DEVELOPMENT USED FUNCTION ===============================
 

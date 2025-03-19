@@ -46,7 +46,6 @@ export const getSalesOverview = async (req, res, next) => {
           groupBy = { year: { $year: "$orderDate" }, month: { $month: "$orderDate" } };
       }
   
-      // Aggregation pipeline
       const salesData = await SalesReport.aggregate([
         { $match: match },
         {

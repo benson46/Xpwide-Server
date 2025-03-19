@@ -39,7 +39,6 @@ import {
   checkoutOrderSuccess,
   getCartItems,
   retryPayment,
-  updateOrderPaymentStatus,
 } from "../controller/checkoutController.js";
 import {
   cancelOrderItem,
@@ -64,6 +63,7 @@ userRouter.post("/resend-otp", resendOTP);
 userRouter.post("/verify-otp", verifyOTP);
 userRouter.post("/reset-password", resetPassword);
 
+
 userRouter.get("/products/search",searchProductsUser)
 
 /* ---------------------------- CATEGORY MANAGEMENT ---------------------------- */
@@ -87,7 +87,7 @@ userRouter
   .get(authenticateUser, isBlockedUser, getProfileDetails)
   .put(authenticateUser, isBlockedUser, editProfileDetails);
 
-userRouter.post("/change-password", isBlockedUser, changePassword);
+userRouter.post("/change-password",authenticateUser, isBlockedUser, changePassword);
 
 /* ---------------------------- ADDRESS MANAGEMENT ---------------------------- */
 
@@ -128,16 +128,15 @@ userRouter.patch(
   authenticateUser,
   cancelOrderItem
 );
-userRouter.patch("/orders/:orderId/return/:productId", initiateReturn);
-userRouter.get('/orders/:orderId/invoice',generateInvoice)
-userRouter.post('/orders/:orderId/retry-payment',authenticateUser,retryPayment)
-userRouter.patch('/orders/:orderId/update-payment-status',authenticateUser,updateOrderPaymentStatus)
+userRouter.patch("/orders/:orderId/return/:productId",authenticateUser,isBlockedUser, initiateReturn);
+userRouter.get('/orders/:orderId/invoice',authenticateUser,isBlockedUser,generateInvoice)
+userRouter.post('/orders/:orderId/retry-payment',authenticateUser,isBlockedUser,retryPayment)
 /* ---------------------------- WALLET MANAGEMENT ---------------------------- */
 
 userRouter
   .route('/wallet')
-  .get(authenticateUser, getWalletDetails)
-  .put(authenticateUser, updateWalletBalance);
+  .get(authenticateUser,isBlockedUser, getWalletDetails)
+  .put(authenticateUser,isBlockedUser, updateWalletBalance);
 
 /* ---------------------------- WISHLIST MANAGEMENT ---------------------------- */
 
@@ -150,6 +149,6 @@ userRouter.post("/coupon/apply", authenticateUser,isBlockedUser,applyCoupon);
 
 /* ---------------------------- USER INFO ---------------------------- */
 
-userRouter.get('/get-user-info', authenticateUser, getUserSpecificInfo);
+userRouter.get('/get-user-info', authenticateUser,isBlockedUser, getUserSpecificInfo);
 
 export default userRouter;

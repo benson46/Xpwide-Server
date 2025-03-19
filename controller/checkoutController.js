@@ -115,7 +115,7 @@ export const checkoutOrderSuccess = async (req, res, next) => {
     const processedProducts = await Promise.all(
       products.map(async (item) => {
         const product = await Product.findById(item.productId)
-          .populate("category brand") // Add population
+          .populate("category brand") 
           .lean();
         if (!product) {
           throw new Error(`Product with id ${item.productId} not found.`);
@@ -152,12 +152,11 @@ export const checkoutOrderSuccess = async (req, res, next) => {
         });
       }
     
-      // Deduct the amount from the wallet
       wallet.balance -= totalAmount;
     
       // Add a transaction entry
       wallet.transactions.push({
-        orderId: new mongoose.Types.ObjectId(), // Ensure you use the actual orderId later
+        orderId: new mongoose.Types.ObjectId(), 
         transactionDate: new Date(),
         transactionType: "debit",
         transactionStatus: "completed",
@@ -165,7 +164,7 @@ export const checkoutOrderSuccess = async (req, res, next) => {
         description: "Order payment using wallet",
       });
     
-      await wallet.save(); // Save the updated wallet
+      await wallet.save(); 
     }
     
 
@@ -177,7 +176,6 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       )
     );
 
-    let discountAmount = 0;
     let couponUsed = null;
 
     if (couponCode) {
@@ -217,7 +215,6 @@ export const checkoutOrderSuccess = async (req, res, next) => {
         return res.status(400).json({ message: "Coupon usage limit reached." });
       }
 
-      // Calculate discount
       discountAmount = (totalAmount * couponUsed.discount) / 100;
 
       // Update coupon usage
@@ -251,7 +248,7 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       product: processedProducts.map((item) => ({
         productId: item.productId,
         productName: item.name,
-        category: item.category, // Ensure this matches your Product schema
+        category: item.category, 
         brand: item.brand,
         quantity: item.quantity,
         unitPrice: item.productPrice,
@@ -259,14 +256,12 @@ export const checkoutOrderSuccess = async (req, res, next) => {
         discount: item.discount,
         couponDeduction: 0,
       })),
-      finalAmount: req.body.totalAmount,
+      finalAmount: totalAmount,
       orderDate: new Date(),
       customer: userId,
       paymentMethod,
       deliveryStatus: "Pending",
     });
-
-    console.log("c:   ", c);
 
     await Cart.findOneAndUpdate({ userId }, { $set: { items: [] } });
     return res.status(201).json({
@@ -356,17 +351,4 @@ export const retryPayment = async (req, res, next) => {
   }
 };
 
-// Add to orderController.js
-export const updateOrderPaymentStatus = async (req, res) => {
-  try {
-    const order = await Order.findByIdAndUpdate(
-      req.params.orderId,
-      { paymentStatus: req.body.paymentStatus },
-      { new: true }
-    );
-    res.json({ success: true, order });
-  } catch (error) {
-    res.status(500).json({ message: "Update failed" });
-  }
-};
 // _______________________________________________________________________//

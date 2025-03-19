@@ -18,7 +18,6 @@ export const createBanner = async (req, res) => {
 
 export const getBanners = async (req, res) => {
   try {
-    console.log("hello mownee")
     const { page = 1, limit = 10 } = req.query;
     const banners = await Banner.find()
       .sort({ createdAt: -1 })

@@ -43,7 +43,6 @@ export const createOffer = async (req, res, next) => {
     }
 
     // Ensure the product or category doesn't already have an active offer
-    // In createOffer controller
     // Add explicit check for existing active offers for product/category
     if (offerType === "product") {
       const existingProductOffer = await Offer.findOne({
@@ -71,7 +70,6 @@ export const createOffer = async (req, res, next) => {
       }
     }
 
-    // Create the offer. Note that for category offers we use the "category" field.
     const offer = await Offer.create({
       offerType,
       name,
@@ -118,7 +116,7 @@ export const createOffer = async (req, res, next) => {
 
     return res.status(201).json({
       success: true,
-      offer: populatedOffer, // Send populated offer
+      offer: populatedOffer, 
     });
   } catch (error) {
     next(error);
@@ -152,7 +150,6 @@ export const getOffers = async (req, res, next) => {
 
 export const getOfferCategories = async (req, res, next) => {
   try {
-    // Fetch all categories (you can also add filters if needed)
     const categories = await Category.find();
     res.status(200).json({
       success: true,
@@ -272,7 +269,6 @@ export const deleteOffer = async (req, res, next) => {
       { $set: { activeOffer: null, offer: null, hasOffer: false } }
     );
 
-    // If the offer is for a category, update that category's hasOffer flag.
     if (offer.offerType === "category" && offer.category) {
       await Category.findByIdAndUpdate(offer.category, { hasOffer: false });
     }

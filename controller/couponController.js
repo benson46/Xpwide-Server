@@ -5,8 +5,6 @@ import Product from "../model/productModel.js";
 
 // =========================== ADMIN CONTROLLERS ===========================
 // METHOD GET || Get all coupons with pagination
-
-
 export const getAllCoupons = async (req, res, next) => {
   try {
     const { page = 1, limit = 5 } = req.query;
@@ -71,7 +69,6 @@ export const addNewCoupon = async (req, res, next) => {
   }
 };
 
-
 // METHOD PUT || Update coupon by ID
 export const updateCoupon = async (req, res, next) => {
   try {
@@ -119,9 +116,6 @@ export const updateCoupon = async (req, res, next) => {
     next(error);
   }
 };
-
-
-
 
 // METHOD DELETE || Delete coupon by ID
 export const deleteCoupon = async (req, res,next) => {
@@ -208,4 +202,5 @@ export const applyCoupon = async (req, res,next) => {
     next(error)
   }
 };
+
 // _______________________________________________________________________//
