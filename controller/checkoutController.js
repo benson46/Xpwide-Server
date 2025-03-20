@@ -177,7 +177,7 @@ export const checkoutOrderSuccess = async (req, res, next) => {
     );
 
     let couponUsed = null;
-
+    let discountAmount = 0;
     if (couponCode) {
       couponUsed = await Coupon.findOne({ code: couponCode.toUpperCase() });
       if (!couponUsed) {
@@ -215,7 +215,7 @@ export const checkoutOrderSuccess = async (req, res, next) => {
         return res.status(400).json({ message: "Coupon usage limit reached." });
       }
 
-      let discountAmount = (totalAmount * couponUsed.discount) / 100;
+       discountAmount = (totalAmount * couponUsed.discount) / 100;
 
       // Update coupon usage
       couponUsed.usageCount += 1;
@@ -253,7 +253,7 @@ export const checkoutOrderSuccess = async (req, res, next) => {
         quantity: item.quantity,
         unitPrice: item.productPrice,
         totalPrice: item.productPrice * item.quantity,
-        discount: item.discount,
+        discount: discountAmount || 0,
         couponDeduction: 0,
       })),
       finalAmount: totalAmount,

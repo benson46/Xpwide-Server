@@ -275,11 +275,12 @@ export const generateInvoice = async (req, res) => {
       .populate("addressId")
       .populate("products.productId");
 
+      console.log('order',order)
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    const doc = new PDFDocument({ margin: 50, size: "A4" });
+    const doc = new PDFDocument({ margin: 30, size: "A4" });
     const brandColor = "#1a237e";
     const lightBrand = "#e8eaf6";
 
@@ -303,57 +304,59 @@ export const generateInvoice = async (req, res) => {
     // ========== HEADER SECTION ==========
     try {
       const logoPath = path.join(process.cwd(), "public", "images", "Logo.png");
-      doc.image(logoPath, 50, 45, { width: 100 });
+      doc.image(logoPath, 50, 30, { width: 80 });
     } catch (err) {
       console.log("Logo not found, proceeding without it");
     }
 
     doc
       .fillColor(brandColor)
-      .fontSize(20)
+      .fontSize(18)
       .font("Helvetica-Bold")
-      .text("XPWIDE Pvt. Ltd.", 200, 65)
-      .fontSize(10)
+      .text("XPWIDE Pvt. Ltd.", 200, 40)
+      .fontSize(9)
       .font("Helvetica")
-      .text("123 Business Street", 200, 90)
-      .text("New Delhi, India - 110001", 200, 105)
-      .text("xpwidestore@gmail.com | +91 98765 43210", 200, 120)
-      .moveTo(50, 160)
-      .lineTo(550, 160)
+      .text("123 Business Street", 200, 60)
+      .text("New Delhi, India - 110001", 200, 72)
+      .text("xpwidestore@gmail.com | +91 98765 43210", 200, 84)
+      .moveTo(40, 120)
+      .lineTo(555, 120)
       .lineWidth(2)
       .strokeColor(brandColor)
       .stroke();
 
-    // ========== INVOICE METADATA ==========
+    // ========== INVOICE & CUSTOMER INFO ==========
+    const infoTop = 140;
+    // Left Column (Invoice Info)
     doc
-      .fontSize(15)
-      .font("Helvetica-Bold")
-      .fillColor(brandColor)
       .fontSize(10)
-      .fillColor("#333")
-      .text(`Invoice #: ${order._id}`, 50, 180)
-      .text(`Date: ${new Date(order.createdAt).toLocaleDateString()}`, 50, 195)
-      .text(`Payment Method: ${order.paymentMethod.toUpperCase()}`, 50, 210)
-      .moveDown(2);
-
-    // ========== CUSTOMER DETAILS ==========
-    doc
-      .fontSize(12)
       .font("Helvetica-Bold")
       .fillColor(brandColor)
-      .text("BILL TO:", 50, 260)
+      .text("INVOICE DETAILS:", 50, infoTop)
       .font("Helvetica")
       .fillColor("#333")
-      .text(order.addressId.name, 50, 280)
-      .text(order.userId.email, 50, 295)
-      .text(`${order.addressId.address}, ${order.addressId.city}`, 50, 310)
-      .text(`${order.addressId.state} - ${order.addressId.pincode}`, 50, 325);
+      .text(`Invoice #: ${order._id}`, 50, infoTop + 15)
+      .text(`Date: ${new Date(order.createdAt).toLocaleDateString()}`, 50, infoTop + 30)
+      .text(`Payment Method: ${order.paymentMethod.toUpperCase()}`, 50, infoTop + 45);
+
+    // Right Column (Customer Info)
+    doc
+      .font("Helvetica-Bold")
+      .fillColor(brandColor)
+      .text("BILL TO:", 300, infoTop)
+      .font("Helvetica")
+      .fillColor("#333")
+      .text(order.addressId.name, 300, infoTop + 15)
+      .text(order.userId.email, 300, infoTop + 30)
+      .text(`${order.addressId.address}, ${order.addressId.city}`, 300, infoTop + 45)
+      .text(`${order.addressId.state} - ${order.addressId.pincode}`, 300, infoTop + 60);
 
     // ========== PRODUCT TABLE ==========
-    const tableTop = 380;
+    const tableTop = infoTop + 90;
+    const rowHeight = 20;
     const colPositions = {
       sno: 50,
-      desc: 100,
+      desc: 90,
       qty: 350,
       price: 420,
       total: 500,
@@ -361,99 +364,64 @@ export const generateInvoice = async (req, res) => {
 
     // Table Header
     doc
-      .rect(colPositions.sno, tableTop, 500, 25)
+      .rect(colPositions.sno, tableTop, 500, rowHeight)
       .fillColor(lightBrand)
       .fill()
-      .fontSize(12)
+      .fontSize(10)
       .font("Helvetica-Bold")
       .fillColor(brandColor)
-      .text("#", colPositions.sno + 10, tableTop + 5)
-      .text("PRODUCTS", colPositions.desc, tableTop + 5)
+      .text("#", colPositions.sno + 5, tableTop + 5)
+      .text("PRODUCT", colPositions.desc, tableTop + 5)
       .text("QTY", colPositions.qty, tableTop + 5)
       .text("PRICE", colPositions.price, tableTop + 5)
       .text("TOTAL", colPositions.total, tableTop + 5);
 
     // Table Rows
-    let y = tableTop + 30;
+    let y = tableTop + rowHeight;
     order.products.forEach((item, index) => {
       const rowColor = index % 2 === 0 ? "#f5f5f5" : "#fff";
       const itemTotal = item.quantity * item.productPrice;
 
-      doc.rect(colPositions.sno, y, 500, 25).fillColor(rowColor).fill();
+      doc.rect(colPositions.sno, y, 500, rowHeight).fillColor(rowColor).fill();
 
       doc
-        .fontSize(10)
+        .fontSize(9)
         .fillColor("#333")
         .font("Helvetica")
-        .text(index + 1, colPositions.sno + 10, y + 5)
-        .text(item.productId.name, colPositions.desc, y + 5)
-        .text(item.quantity, colPositions.qty, y + 5);
-      doc
+        .text(index + 1, colPositions.sno + 5, y + 5)
+        .text(item.productId.name.substring(0, 30), colPositions.desc, y + 5)
+        .text(item.quantity, colPositions.qty, y + 5)
         .font("Courier")
-        .text(formatCurrency(item.productPrice), colPositions.price, y + 5);
-      doc
-        .font("Courier")
+        .text(formatCurrency(item.productPrice), colPositions.price, y + 5)
         .text(formatCurrency(itemTotal), colPositions.total, y + 5);
 
-      y += 25;
+      y += rowHeight;
     });
 
     // ========== TOTAL SECTION ==========
+    const totalY = y + 20;
     doc
-      .fontSize(12)
+      .fontSize(10)
       .font("Helvetica-Bold")
       .fillColor(brandColor)
-      .text("Grand Total:", colPositions.total - 50, y + 60)
-      .font("Helvetica")
-      .fillColor("#333");
-    doc
-      .font("Courier")
-      .text(formatCurrency(order.totalAmount), colPositions.total, y + 60);
+      .text("Grand Total:", colPositions.total - 60, totalY)
+      .font("Courier-Bold")
+      .fillColor("#333")
+      .text(formatCurrency(order.totalAmount), colPositions.total, totalY);
 
     // ========== FOOTER ==========
+    const footerY = totalY + 40;
     doc
-      .moveDown(4)
-      .fontSize(10)
+      .fontSize(8)
       .fillColor("#666")
-      .text("Terms & Conditions:", 50, doc.page.height - 100)
-      .text(
-        "1. Goods once sold will not be taken back.",
-        50,
-        doc.page.height - 85
-      )
-      .text(
-        "2. All disputes subject to Delhi jurisdiction.",
-        50,
-        doc.page.height - 70
-      )
-      .text("Thank you for your business!", 400, doc.page.height - 70, {
+      .text("Terms & Conditions:", 50, footerY)
+      .text("1. Goods once sold will not be taken back.", 50, footerY + 12)
+      .text("Thank you for your business!", 400, footerY + 24, {
         align: "right",
       })
-      .text("Authorized Signature", 400, doc.page.height - 55, {
+      .text("Authorized Signature", 400, footerY + 36, {
         align: "right",
       });
-
-    // Add page numbers
-    const addPageNumbers = () => {
-      try {
-        const pages = doc.bufferedPageRange();
-        for (let i = pages.start; i < pages.start + pages.count; i++) {
-          doc.switchToPage(i);
-          doc
-            .fontSize(8)
-            .fillColor("#666")
-            .text(
-              `Page ${i - pages.start + 1} of ${pages.count}`,
-              50,
-              doc.page.height - 30
-            );
-        }
-      } catch (err) {
-        console.error("Error adding page numbers:", err);
-      }
-    };
-
-    addPageNumbers();
 
     doc.end();
   } catch (error) {

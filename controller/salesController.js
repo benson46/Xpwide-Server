@@ -88,12 +88,14 @@ export const getSalesReport = async (req, res, next) => {
         (sum, report) =>
           sum +
           report.product.reduce(
-            (subtotal, product) =>
+            (subtotal, product) =>{
+              console.log('s',subtotal);
+              console.log('p',product)
               subtotal +
               (product.discount || 0) +
               (product.couponDeduction || 0),
             0
-          ),
+          }),
         0
       ),
     };
