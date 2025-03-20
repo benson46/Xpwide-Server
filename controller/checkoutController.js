@@ -240,6 +240,8 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       couponCode: couponCode || null,
     });
 
+    console.log('o:',order)
+
     const c = await SalesReport.create({
       orderId: order._id,
       addressId: req.body.addressId,

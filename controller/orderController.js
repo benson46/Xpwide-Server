@@ -414,8 +414,8 @@ export const generateInvoice = async (req, res) => {
     doc
       .fontSize(8)
       .fillColor("#666")
-      .text("Terms & Conditions:", 50, footerY)
-      .text("1. Goods once sold will not be taken back.", 50, footerY + 12)
+      // .text("Terms & Conditions:", 50, footerY)
+      // .text("1. Goods once sold will not be taken back.", 50, footerY + 12)
       .text("Thank you for your business!", 400, footerY + 24, {
         align: "right",
       })
@@ -470,8 +470,15 @@ export const cancelOrderItem = async (req, res, next) => {
         userWallet = new Wallet({ user: order.userId, balance: 0 });
       }
 
-      const refundAmount = product.productId.discountedPrice * product.quantity;
+      const refundAmount = product.productPrice * product.quantity;
       userWallet.balance += Number(refundAmount);
+      userWallet.transactions.push({
+        transactionDate: new Date(),
+        transactionType: "credit",
+        transactionStatus: "completed",
+        amount: refundAmount,
+        description: `Refund for approved return of a product`,
+      })
 
       await userWallet.save();
     }
