@@ -215,7 +215,7 @@ export const checkoutOrderSuccess = async (req, res, next) => {
         return res.status(400).json({ message: "Coupon usage limit reached." });
       }
 
-      discountAmount = (totalAmount * couponUsed.discount) / 100;
+      let discountAmount = (totalAmount * couponUsed.discount) / 100;
 
       // Update coupon usage
       couponUsed.usageCount += 1;
