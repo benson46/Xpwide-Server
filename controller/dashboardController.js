@@ -157,7 +157,7 @@ export const getBestSellingProducts = async (req, res, next) => {
   };
 
 
-  // METHOD GET || TOP 10 BEST-SELLING BRANDS
+  // METHOD GET || TOP 5 BEST-SELLING BRANDS
   export const getBestSellingBrands = async (req, res, next) => {
     try {
       const brands = await SalesReport.aggregate([
@@ -169,7 +169,7 @@ export const getBestSellingProducts = async (req, res, next) => {
           },
         },
         { $sort: { totalRevenue: -1 } },
-        { $limit: 10 },
+        { $limit: 5 },
       ]);
   
       res.json({ success: true, data: brands });
