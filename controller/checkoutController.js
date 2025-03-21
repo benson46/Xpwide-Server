@@ -318,7 +318,7 @@ export const retryPayment = async (req, res, next) => {
               },
             },
           },
-          { new: true } // This ensures you get the updated document
+          { new: true } // Get the updated document
         );
 
         if (!updatedWallet) {
