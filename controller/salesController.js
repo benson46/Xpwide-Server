@@ -80,25 +80,25 @@ export const getSalesReport = async (req, res, next) => {
 
     const summary = {
       totalSales: reports.length,
-      totalAmount: reports.reduce(
-        (sum, report) => sum + (report.finalAmount || 0),
-        0
-      ),
-      totalDiscount: reports.reduce(
-        (sum, report) =>
-          sum +
-          report.product.reduce(
-            (subtotal, product) =>{
-              console.log('s',subtotal);
-              console.log('p',product)
-              subtotal +
-              (product.discount || 0) +
-              (product.couponDeduction || 0),
-            0
-          }),
-        0
-      ),
+      totalAmount: reports.reduce((sum, report) => {
+        return sum + (report.finalAmount || 0);
+      }, 0),
+      
+      totalDiscount: reports.reduce((sum, report) => {
+        const reportDiscount = report.product.reduce((subtotal, product) => {
+          console.log(product)
+          product.productId.price 
+          const discountValue =
+            (product.productId.price - product.unitPrice) + (product.couponDeduction || 0);
+          return subtotal + discountValue;
+        }, 0);
+      
+        return sum + reportDiscount;
+      }, 0),      
     };
+    
+    console.log("Final Summary:", summary);
+    
 
     res.json({
       success: true,

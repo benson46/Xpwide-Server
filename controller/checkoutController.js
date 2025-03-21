@@ -83,6 +83,8 @@ export const getCartItems = async (req, res, next) => {
 // METHOD POST || Process checkout order
 export const checkoutOrderSuccess = async (req, res, next) => {
   try {
+
+
     const {
       products,
       paymentMethod,
@@ -91,14 +93,16 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       totalAmount,
       paymentStatus,
     } = req.body;
-
     const userId = req.user.id;
 
     if (!products?.length) {
+      console.log("No products found in order.");
       return res.status(400).json({ message: "No products in order." });
     }
+
     const validPaymentMethods = ["COD", "Razorpay", "Wallet"];
     if (!validPaymentMethods.includes(paymentMethod)) {
+      console.log("Invalid payment method:", paymentMethod);
       return res.status(400).json({
         message: `Invalid payment method. Must be one of: ${validPaymentMethods.join(
           ", "
@@ -107,6 +111,7 @@ export const checkoutOrderSuccess = async (req, res, next) => {
     }
 
     if (paymentMethod === "COD" && totalAmount > 1000) {
+      console.log("COD not allowed for orders above ₹1000.");
       return res.status(400).json({
         message: "Cash on Delivery is not available for orders above ₹1000.",
       });
@@ -115,13 +120,13 @@ export const checkoutOrderSuccess = async (req, res, next) => {
     const processedProducts = await Promise.all(
       products.map(async (item) => {
         const product = await Product.findById(item.productId)
-          .populate("category brand") 
+          .populate("category brand")
           .lean();
+
         if (!product) {
           throw new Error(`Product with id ${item.productId} not found.`);
         }
 
-        // Validate stock availability
         if (product.stock < item.quantity) {
           throw new Error(`Insufficient stock for product: ${product.name}`);
         }
@@ -139,47 +144,47 @@ export const checkoutOrderSuccess = async (req, res, next) => {
 
     if (paymentMethod === "Wallet") {
       const wallet = await Wallet.findOne({ user: userId });
-    
+
       if (!wallet) {
         return res.status(400).json({
           message: "Wallet not found. Please add funds to proceed.",
         });
       }
-    
+
       if (wallet.balance < totalAmount) {
         return res.status(400).json({
           message: "Insufficient wallet balance.",
         });
       }
-    
+
       wallet.balance -= totalAmount;
-    
-      // Add a transaction entry
       wallet.transactions.push({
-        orderId: new mongoose.Types.ObjectId(), 
+        orderId: new mongoose.Types.ObjectId(),
         transactionDate: new Date(),
         transactionType: "debit",
         transactionStatus: "completed",
         amount: totalAmount,
         description: "Order payment using wallet",
       });
-    
-      await wallet.save(); 
-    }
-    
 
-    await Promise.all(
-      processedProducts.map((item) =>
-        Product.findByIdAndUpdate(item.productId, {
-          $inc: { stock: -item.quantity },
-        })
-      )
-    );
+      await wallet.save();
+    }
+
+    if (paymentStatus === "Completed") {
+      await Promise.all(
+        processedProducts.map((item) =>
+          Product.findByIdAndUpdate(item.productId, {
+            $inc: { stock: -item.quantity },
+          })
+        )
+      );
+    }
 
     let couponUsed = null;
     let discountAmount = 0;
     if (couponCode) {
       couponUsed = await Coupon.findOne({ code: couponCode.toUpperCase() });
+
       if (!couponUsed) {
         return res.status(400).json({ message: "Invalid coupon code." });
       }
@@ -207,6 +212,7 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       const userUsage = couponUsed.usedBy.find((entry) =>
         entry.userId.equals(userId)
       );
+
       if (
         couponUsed.usageLimitPerUser !== null &&
         userUsage &&
@@ -215,9 +221,8 @@ export const checkoutOrderSuccess = async (req, res, next) => {
         return res.status(400).json({ message: "Coupon usage limit reached." });
       }
 
-       discountAmount = (totalAmount * couponUsed.discount) / 100;
+      discountAmount = (totalAmount * couponUsed.discount) / 100;
 
-      // Update coupon usage
       couponUsed.usageCount += 1;
       if (couponUsed.usageLimitPerUser !== null) {
         if (userUsage) {
@@ -240,17 +245,14 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       couponCode: couponCode || null,
     });
 
-    console.log('o:',order)
-
-    const c = await SalesReport.create({
+    const salesReport = await SalesReport.create({
       orderId: order._id,
-      addressId: req.body.addressId,
-      couponCode: req.body.couponCode || null,
-      couponId: req.body.couponId || null,
+      addressId: addressId,
+      couponCode: couponCode || null,
       product: processedProducts.map((item) => ({
         productId: item.productId,
         productName: item.name,
-        category: item.category, 
+        category: item.category,
         brand: item.brand,
         quantity: item.quantity,
         unitPrice: item.productPrice,
@@ -265,7 +267,9 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       deliveryStatus: "Pending",
     });
 
+
     await Cart.findOneAndUpdate({ userId }, { $set: { items: [] } });
+
     return res.status(201).json({
       success: true,
       message: "Order placed successfully.",
@@ -273,36 +277,54 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       totalAmount: totalAmount,
     });
   } catch (error) {
+    console.error("Error during checkout:", error);
     next(error);
   }
 };
 
+
 export const retryPayment = async (req, res, next) => {
   try {
+    console.log("Retry payment initiated"); // Debug log
     const userId = req.user?.id;
     const { paymentMethod } = req.body;
     const { orderId } = req.params;
 
+    console.log(req.body)
+
+    console.log(`User ID: ${userId}, Order ID: ${orderId}, Payment Method: ${paymentMethod}`);
+
     const order = await Order.findById(orderId);
     if (!order) {
+      console.error("Order not found");
       return res.status(404).json({ message: "Order not found" });
     }
+
+    console.log(`Order found: ${order._id}, Amount: ${order.totalAmount}`);
 
     let paymentSuccess = false;
 
     switch (paymentMethod) {
       case "Razorpay":
-        return res.status(200).json({
-          amount: order.totalAmount,
-          currency: "INR",
-        });
+        console.log("Processing Razorpay payment...");
+        paymentSuccess= true;
+        break;
 
       case "Wallet":
+        console.log("Processing Wallet payment...");
         let wallet = await Wallet.findOne({ user: userId });
 
-        if (!wallet || wallet.balance < order.totalAmount) {
+        if (!wallet) {
+          console.error("Wallet not found");
+          return res.status(400).json({ message: "Wallet not found" });
+        }
+
+        if (wallet.balance < order.totalAmount) {
+          console.error("Insufficient wallet balance");
           return res.status(400).json({ message: "Insufficient balance" });
         }
+
+        console.log(`Wallet balance before transaction: ${wallet.balance}`);
 
         // Deduct the amount and record the transaction
         const updatedWallet = await Wallet.findOneAndUpdate(
@@ -322,13 +344,18 @@ export const retryPayment = async (req, res, next) => {
         );
 
         if (!updatedWallet) {
+          console.error("Wallet update failed");
           return res.status(500).json({ message: "Wallet update failed" });
         }
+
+        console.log(`Wallet balance after transaction: ${updatedWallet.balance}`);
         paymentSuccess = true;
         break;
 
       case "COD":
+        console.log("Processing Cash on Delivery payment...");
         if (order.totalAmount > 1000) {
+          console.warn("COD not available for orders above ₹1000.");
           return res.status(400).json({
             message:
               "Cash on Delivery is not available for orders above ₹1000.",
@@ -338,17 +365,21 @@ export const retryPayment = async (req, res, next) => {
         break;
 
       default:
+        console.error("Invalid payment method");
         return res.status(400).json({ message: "Invalid method" });
     }
 
     if (paymentSuccess) {
       order.paymentStatus = "Success";
       await order.save();
+      console.log("Payment successful, order updated");
       return res.json({ success: true, order });
     }
 
+    console.error("Payment failed");
     res.status(400).json({ message: "Payment failed" });
   } catch (error) {
+    console.error("Error in retryPayment:", error);
     next(error);
   }
 };

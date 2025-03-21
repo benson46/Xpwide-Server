@@ -463,8 +463,17 @@ export const cancelOrderItem = async (req, res, next) => {
     if (order.products.every((p) => p.status === "Cancelled")) {
       order.status = "Cancelled";
     }
+    await order.save();
 
-    if (order.paymentMethod !== "COD") {
+    const productToUpdate = await Product.findById(productId);
+    if (productToUpdate) {
+      productToUpdate.stock += product.quantity;
+      await productToUpdate.save();
+    } else {
+      console.error("Product not found - stock not restored");
+    }
+
+    if (order.paymentMethod !== "COD" && order.paymentStatus === "Completed") {
       let userWallet = await Wallet.findOne({ user: order.userId });
       if (!userWallet) {
         userWallet = new Wallet({ user: order.userId, balance: 0 });
@@ -482,7 +491,6 @@ export const cancelOrderItem = async (req, res, next) => {
 
       await userWallet.save();
     }
-    await order.save();
 
     await SalesReport.updateOne(
       { orderId },
