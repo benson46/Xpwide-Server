@@ -52,8 +52,8 @@ export const authenticateAdmin = async (req, res, next) => {
         // Set the new access token in cookies
         res.cookie("adminAccessToken", newAccessToken, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === "production", // Secure cookies in production
-          sameSite: "Strict",
+          secure: true, // Secure cookies in production
+          sameSite: "None",
           maxAge: 15 * 60 * 1000, // 15 minutes
         });
 

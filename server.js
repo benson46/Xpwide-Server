@@ -27,13 +27,13 @@ if (!fs.existsSync(logDirectory)) {
   fs.mkdirSync(logDirectory);
 }
 
-if (process.env.NODE_ENV === "production") {
-  app.use(morgan("combined", { stream: accessLogStream }));
-} else {
-  app.use(morgan("dev"));
-}
+// if (process.env.NODE_ENV === "production") {
+//   app.use(morgan("combined", { stream: accessLogStream }));
+// } else {
+//   app.use(morgan("dev"));
+// }
 
-// Middlewares
+// Middlewares 
 app.use(
   cors({
     origin: [process.env.CORS_CLIENT_SIDE],

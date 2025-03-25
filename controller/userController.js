@@ -24,14 +24,14 @@ import Wallet from "../model/walletModel.js";
 const setCookies = (res, accessToken, refreshToken) => {
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
-    secure: false,
-    sameSite: "strict",
+    secure: true,
+    sameSite: "None",
     maxAge: 15 * 60 * 1000, // Expiry time: 15 minutes
   });
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
-    secure: false,
-    sameSite: "strict",
+    secure: true,
+    sameSite: "None",
     maxAge: 7 * 24 * 60 * 60 * 1000, // Expiry time: 7 days
   });
 };
@@ -367,7 +367,7 @@ export const logout = async (req, res, next) => {
     }
     res.clearCookie("refreshToken");
     res.clearCookie("accessToken");
-    res.json({ message: "Logged out successfully." });
+    res.status(200).json({ message: "Logged out successfully." });
   } catch (error) {
     next(error);
   }

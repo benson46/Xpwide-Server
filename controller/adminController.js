@@ -19,14 +19,14 @@ import jwt from "jsonwebtoken";
 const setCookies = (res, adminAccessToken, adminRefreshToken) => {
   res.cookie("adminAccessToken", adminAccessToken, {
     httpOnly: true,
-    secure: false,
-    sameSite: "strict",
+    secure: true,
+    sameSite: "None",
     maxAge: 15 * 60 * 1000, // 15 minutes
   });
   res.cookie("adminRefreshToken", adminRefreshToken, {
     httpOnly: true,
-    secure: false,
-    sameSite: "strict",
+    secure: true,
+    sameSite: "None",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 };
@@ -71,13 +71,13 @@ export const adminLogout = async (req, res, next) => {
     }
     res.clearCookie("adminAccessToken", {
       httpOnly: true,
-      secure: false,
-      sameSite: "Strict",
+      secure: true,
+      sameSite: "None",
     });
     res.clearCookie("adminRefreshToken", {
       httpOnly: true,
-      secure: false,
-      sameSite: "Strict",
+      secure: true,
+      sameSite: "None",
     });
     res.status(200).json({ success:true,message: "Logged out successfully." });
   } catch (error) {

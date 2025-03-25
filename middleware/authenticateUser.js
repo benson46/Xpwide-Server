@@ -54,7 +54,7 @@ export const authenticateUser = async (req, res, next) => {
         res.cookie("userAccessToken", newAccessToken, {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production",
-          sameSite: "Strict",
+          sameSite: "None",
           maxAge: 15 * 60 * 1000, // 15 minutes
         });
 
