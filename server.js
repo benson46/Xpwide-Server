@@ -34,9 +34,9 @@ if (!fs.existsSync(logDirectory)) {
 // }
 
 // Middlewares 
-app.use(
+app.use( 
   cors({
-    origin: [process.env.CORS_CLIENT_SIDE],
+    origin: [process.env.CORS_CLIENT_SIDE,process.env.CORS_CLIENT_SIDE1,process.env.CORS_CLIENT_SIDE2],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization", "User-Email"],

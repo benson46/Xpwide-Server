@@ -285,33 +285,35 @@ export const checkoutOrderSuccess = async (req, res, next) => {
 
 export const retryPayment = async (req, res, next) => {
   try {
-    console.log("Retry payment initiated"); // Debug log
     const userId = req.user?.id;
     const { paymentMethod } = req.body;
     const { orderId } = req.params;
 
-    console.log(req.body)
 
-    console.log(`User ID: ${userId}, Order ID: ${orderId}, Payment Method: ${paymentMethod}`);
-
-    const order = await Order.findById(orderId);
+    const order = await Order.findById(orderId).populate("products.productId");
     if (!order) {
       console.error("Order not found");
       return res.status(404).json({ message: "Order not found" });
     }
 
-    console.log(`Order found: ${order._id}, Amount: ${order.totalAmount}`);
+    for (const item of order.products) {
+      const product = item.productId;
+      if (product.stock < item.quantity) {
+        console.error(`Insufficient stock for product ${product.name}`);
+        return res.status(400).json({
+          message: `Insufficient stock for product ${product.name}`,
+        });
+      }
+    }
 
     let paymentSuccess = false;
 
     switch (paymentMethod) {
       case "Razorpay":
-        console.log("Processing Razorpay payment...");
-        paymentSuccess= true;
+        paymentSuccess = true;
         break;
 
       case "Wallet":
-        console.log("Processing Wallet payment...");
         let wallet = await Wallet.findOne({ user: userId });
 
         if (!wallet) {
@@ -324,9 +326,6 @@ export const retryPayment = async (req, res, next) => {
           return res.status(400).json({ message: "Insufficient balance" });
         }
 
-        console.log(`Wallet balance before transaction: ${wallet.balance}`);
-
-        // Deduct the amount and record the transaction
         const updatedWallet = await Wallet.findOneAndUpdate(
           { user: userId },
           {
@@ -340,7 +339,7 @@ export const retryPayment = async (req, res, next) => {
               },
             },
           },
-          { new: true } // Get the updated document
+          { new: true }
         );
 
         if (!updatedWallet) {
@@ -348,17 +347,14 @@ export const retryPayment = async (req, res, next) => {
           return res.status(500).json({ message: "Wallet update failed" });
         }
 
-        console.log(`Wallet balance after transaction: ${updatedWallet.balance}`);
         paymentSuccess = true;
         break;
 
       case "COD":
-        console.log("Processing Cash on Delivery payment...");
         if (order.totalAmount > 1000) {
           console.warn("COD not available for orders above ₹1000.");
           return res.status(400).json({
-            message:
-              "Cash on Delivery is not available for orders above ₹1000.",
+            message: "Cash on Delivery is not available for orders above ₹1000.",
           });
         }
         paymentSuccess = true;
@@ -370,10 +366,24 @@ export const retryPayment = async (req, res, next) => {
     }
 
     if (paymentSuccess) {
-      order.paymentStatus = "Success";
-      await order.save();
-      console.log("Payment successful, order updated");
-      return res.json({ success: true, order });
+      try {
+        const updateOperations = order.products.map((item) => ({
+          updateOne: {
+            filter: { _id: item.productId._id },
+            update: { $inc: { stock: -item.quantity } },
+            options: { runValidators: true }, // Enforce stock validation
+          },
+        }));
+
+        await Product.bulkWrite(updateOperations);
+        order.paymentStatus = "Success";
+        await order.save();
+
+        return res.json({ success: true, order });
+      } catch (error) {
+        console.error("Error updating product stock:", error);
+        return res.status(500).json({ message: "Failed to update product stock" });
+      }
     }
 
     console.error("Payment failed");
