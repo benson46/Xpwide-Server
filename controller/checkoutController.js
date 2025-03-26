@@ -277,6 +277,119 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       totalAmount: totalAmount,
     });
   } catch (error) {
+    console.error("Error during checkout:", error);
+    next(error);
+  }
+};
+
+
+export const retryPayment = async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+    const { paymentMethod } = req.body;
+    const { orderId } = req.params;
+
+
+    const order = await Order.findById(orderId).populate("products.productId");
+    if (!order) {
+      console.error("Order not found");
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    for (const item of order.products) {
+      const product = item.productId;
+      if (product.stock < item.quantity) {
+        console.error(`Insufficient stock for product ${product.name}`);
+        return res.status(400).json({
+          message: `Insufficient stock for product ${product.name}`,
+        });
+      }
+    }
+
+    let paymentSuccess = false;
+
+    switch (paymentMethod) {
+      case "Razorpay":
+        paymentSuccess = true;
+        break;
+
+      case "Wallet":
+        let wallet = await Wallet.findOne({ user: userId });
+
+        if (!wallet) {
+          console.error("Wallet not found");
+          return res.status(400).json({ message: "Wallet not found" });
+        }
+
+        if (wallet.balance < order.totalAmount) {
+          console.error("Insufficient wallet balance");
+          return res.status(400).json({ message: "Insufficient balance" });
+        }
+
+        const updatedWallet = await Wallet.findOneAndUpdate(
+          { user: userId },
+          {
+            $inc: { balance: -order.totalAmount },
+            $push: {
+              transactions: {
+                amount: order.totalAmount,
+                transactionType: "debit",
+                transactionStatus: "completed",
+                timestamp: new Date(),
+              },
+            },
+          },
+          { new: true }
+        );
+
+        if (!updatedWallet) {
+          console.error("Wallet update failed");
+          return res.status(500).json({ message: "Wallet update failed" });
+        }
+
+        paymentSuccess = true;
+        break;
+
+      case "COD":
+        if (order.totalAmount > 1000) {
+          console.warn("COD not available for orders above ₹1000.");
+          return res.status(400).json({
+            message: "Cash on Delivery is not available for orders above ₹1000.",
+          });
+        }
+        paymentSuccess = true;
+        break;
+
+      default:
+        console.error("Invalid payment method");
+        return res.status(400).json({ message: "Invalid method" });
+    }
+
+    if (paymentSuccess) {
+      try {
+        const updateOperations = order.products.map((item) => ({
+          updateOne: {
+            filter: { _id: item.productId._id },
+            update: { $inc: { stock: -item.quantity } },
+            options: { runValidators: true }, // Enforce stock validation
+          },
+        }));
+
+        await Product.bulkWrite(updateOperations);
+        order.paymentStatus = "Success";
+        await order.save();
+
+        return res.json({ success: true, order });
+      } catch (error) {
+        console.error("Error updating product stock:", error);
+        return res.status(500).json({ message: "Failed to update product stock" });
+      }
+    }
+
+    console.error("Payment failed");
+    res.status(400).json({ message: "Payment failed" });
+  } catch (error) {
+    console.error("Error in retryPayment:", error);
     next(error);
   }
 };
