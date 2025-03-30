@@ -86,8 +86,8 @@ export const getSalesReport = async (req, res, next) => {
       
       totalDiscount: reports.reduce((sum, report) => {
         const reportDiscount = report.product.reduce((subtotal, product) => {
-          console.log(product)
-          product.productId.price 
+          // console.log(product)
+          // product.productId.price 
           const discountValue =
             (product.productId.price - product.unitPrice) + (product.couponDeduction || 0);
           return subtotal + discountValue;

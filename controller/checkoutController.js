@@ -83,8 +83,7 @@ export const getCartItems = async (req, res, next) => {
 // METHOD POST || Process checkout order
 export const checkoutOrderSuccess = async (req, res, next) => {
   try {
-
-
+    console.log('req:body:  ', req.body);
     const {
       products,
       paymentMethod,
@@ -104,9 +103,7 @@ export const checkoutOrderSuccess = async (req, res, next) => {
     if (!validPaymentMethods.includes(paymentMethod)) {
       console.log("Invalid payment method:", paymentMethod);
       return res.status(400).json({
-        message: `Invalid payment method. Must be one of: ${validPaymentMethods.join(
-          ", "
-        )}`,
+        message: `Invalid payment method. Must be one of: ${validPaymentMethods.join(", ")}`,
       });
     }
 
@@ -140,6 +137,12 @@ export const checkoutOrderSuccess = async (req, res, next) => {
           quantity: item.quantity,
         };
       })
+    );
+
+    // Compute realPrice from processed products to prevent client manipulation
+    const computedRealPrice = processedProducts.reduce(
+      (sum, item) => sum + item.productPrice * item.quantity,
+      0
     );
 
     if (paymentMethod === "Wallet") {
@@ -182,6 +185,7 @@ export const checkoutOrderSuccess = async (req, res, next) => {
 
     let couponUsed = null;
     let discountAmount = 0;
+    let couponDeductions = [];
     if (couponCode) {
       couponUsed = await Coupon.findOne({ code: couponCode.toUpperCase() });
 
@@ -196,7 +200,7 @@ export const checkoutOrderSuccess = async (req, res, next) => {
         return res.status(400).json({ message: "Coupon is not valid." });
       }
 
-      if (totalAmount < couponUsed.minPurchaseAmount) {
+      if (computedRealPrice < couponUsed.minPurchaseAmount) {
         return res.status(400).json({
           message: `Minimum purchase amount for this coupon is ₹${couponUsed.minPurchaseAmount}.`,
         });
@@ -221,7 +225,29 @@ export const checkoutOrderSuccess = async (req, res, next) => {
         return res.status(400).json({ message: "Coupon usage limit reached." });
       }
 
-      discountAmount = (totalAmount * couponUsed.discount) / 100;
+      discountAmount = (computedRealPrice * couponUsed.discount) / 100;
+
+      // Calculate coupon deduction for each product
+      processedProducts.forEach((item) => {
+        const itemTotal = item.productPrice * item.quantity;
+        const itemDiscount = (itemTotal / computedRealPrice) * discountAmount;
+        item.couponDeduction = parseFloat(itemDiscount.toFixed(2));
+      });
+
+      // Adjust for rounding discrepancies
+      const totalDeduction = processedProducts.reduce(
+        (sum, item) => sum + item.couponDeduction,
+        0
+      );
+      const discrepancy = discountAmount - totalDeduction;
+      if (discrepancy !== 0) {
+        processedProducts[processedProducts.length - 1].couponDeduction +=
+          discrepancy;
+        processedProducts[processedProducts.length - 1].couponDeduction =
+          parseFloat(
+            processedProducts[processedProducts.length - 1].couponDeduction.toFixed(2)
+          );
+      }
 
       couponUsed.usageCount += 1;
       if (couponUsed.usageLimitPerUser !== null) {
@@ -232,6 +258,9 @@ export const checkoutOrderSuccess = async (req, res, next) => {
         }
       }
       await couponUsed.save();
+    } else {
+      // No coupon applied, set couponDeduction to 0 for all products
+      processedProducts.forEach((item) => (item.couponDeduction = 0));
     }
 
     const order = await Order.create({
@@ -257,8 +286,8 @@ export const checkoutOrderSuccess = async (req, res, next) => {
         quantity: item.quantity,
         unitPrice: item.productPrice,
         totalPrice: item.productPrice * item.quantity,
-        discount: discountAmount || 0,
-        couponDeduction: 0,
+        discount: item.couponDeduction || 0,
+        couponDeduction: item.couponDeduction || 0,
       })),
       finalAmount: totalAmount,
       orderDate: new Date(),
@@ -266,7 +295,6 @@ export const checkoutOrderSuccess = async (req, res, next) => {
       paymentMethod,
       deliveryStatus: "Pending",
     });
-
 
     await Cart.findOneAndUpdate({ userId }, { $set: { items: [] } });
 
