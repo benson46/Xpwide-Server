@@ -21,7 +21,6 @@ export const calculateBestOffer = async (product) => {
     isActive: true,
   });
 
-  console.log("product d price: ", product._doc.price);
   let originalPrice = product._doc.price;
   let bestOffer = null;
   let finalPrice = originalPrice;
